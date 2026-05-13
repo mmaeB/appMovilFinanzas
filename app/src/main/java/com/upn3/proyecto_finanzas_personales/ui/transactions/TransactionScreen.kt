@@ -1,246 +1,277 @@
 package com.upn3.proyecto_finanzas_personales.ui.transactions
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import com.upn3.proyecto_finanzas_personales.model.Category
 import com.upn3.proyecto_finanzas_personales.model.TransactionType
+import com.upn3.proyecto_finanzas_personales.ui.components.NumericKeyboard
 import com.upn3.proyecto_finanzas_personales.viewmodel.FinanceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionScreen(
     viewModel: FinanceViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onNavigateToCategories: () -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var origin by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
-    var showError by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+
+    // Filtrar categorías por tipo (Ingreso o Gasto)
+    val filteredCategories = uiState.categories.filter { it.type == type }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "NUEVA TRANSACCIÓN",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            letterSpacing = 2.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                },
+                title = { Text("NUEVA TRANSACCIÓN") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
-                )
+                actions = {
+                    TextButton(onClick = onNavigateToCategories) {
+                        Text("GESTIONAR")
+                    }
+                }
             )
-        },
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+        }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(24.dp), // Intentional spacing for "The Sovereign Vault"
-            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            // Section Header
-            Text(
-                text = "Detalles del Movimiento",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // Tonal Depth: Segmented Control without lines
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "TIPO",
-                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 4.dp, bottom = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Selector de Tipo (Ingreso / Gasto)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            MaterialTheme.colorScheme.surfaceContainerLow,
-                            RoundedCornerShape(12.dp)
-                        )
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .height(42.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                        .padding(2.dp)
                 ) {
-                    TransactionTypeToggle(
-                        selected = type == TransactionType.INCOME,
-                        label = "Ingreso",
-                        onClick = { type = TransactionType.INCOME },
-                        modifier = Modifier.weight(1f)
-                    )
-                    TransactionTypeToggle(
-                        selected = type == TransactionType.EXPENSE,
-                        label = "Gasto",
-                        onClick = { type = TransactionType.EXPENSE },
-                        modifier = Modifier.weight(1f)
-                    )
+                    Button(
+                        onClick = { 
+                            type = TransactionType.INCOME 
+                            selectedCategory = null
+                        },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (type == TransactionType.INCOME) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            contentColor = if (type == TransactionType.INCOME) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = null
+                    ) {
+                        Text("INGRESO", style = MaterialTheme.typography.labelSmall)
+                    }
+                    Button(
+                        onClick = { 
+                            type = TransactionType.EXPENSE 
+                            selectedCategory = null
+                        },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (type == TransactionType.EXPENSE) MaterialTheme.colorScheme.error else Color.Transparent,
+                            contentColor = if (type == TransactionType.EXPENSE) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        elevation = null
+                    ) {
+                        Text("GASTO", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+
+                // Visualización del Monto (Lectura con panel numérico)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("MONTO", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, letterSpacing = 1.sp))
+                        Text(
+                            text = if (amount.isEmpty()) "S/. 0.00" else "S/. $amount",
+                            style = MaterialTheme.typography.displaySmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (type == TransactionType.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+
+                // Descripción (Activa teclado estándar)
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { 
+                        description = it
+                        viewModel.clearError()
+                    },
+                    label = { Text("Descripción") },
+                    placeholder = { Text("¿En qué se usó?") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    textStyle = MaterialTheme.typography.bodyLarge
+                )
+
+                // Listado de Categorías Horizontal
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Categoría", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 4.dp)
+                    ) {
+                        items(filteredCategories) { category ->
+                            val isSelected = selectedCategory == category
+                            Surface(
+                                onClick = { 
+                                    selectedCategory = category
+                                    viewModel.clearError()
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                                modifier = Modifier.height(48.dp)
+                            ) {
+                                Box(modifier = Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+                                    Text(category.name, style = MaterialTheme.typography.bodyMedium, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                }
+                            }
+                        }
+                        item {
+                            Surface(
+                                onClick = onNavigateToCategories,
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.height(48.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Text("NUEVA", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            SovereignTextField(
-                value = amount,
-                onValueChange = { 
-                    amount = it
-                    showError = false 
-                },
-                label = "Monto",
-                placeholder = "0.00",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-            )
-
-            SovereignTextField(
-                value = description,
-                onValueChange = { 
-                    description = it
-                    showError = false
-                },
-                label = "Descripción",
-                placeholder = "¿En qué se gastó?"
-            )
-
-            SovereignTextField(
-                value = origin,
-                onValueChange = { 
-                    origin = it
-                    showError = false
-                },
-                label = "Origen / Categoría",
-                placeholder = "Ejem. Salario, Comida..."
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            if (showError) {
-                Text(
-                    text = "Complete todos los campos para continuar",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-            }
-
-            // Primary Button with Signature color (PrimaryContainer)
-            Button(
-                onClick = {
-                    val amt = amount.toDoubleOrNull() ?: 0.0
-                    if (amt > 0 && description.isNotBlank() && origin.isNotBlank()) {
-                        viewModel.addTransaction(amt, description, origin, type)
-                        onNavigateBack()
-                    } else {
-                        showError = true
-                    }
-                },
+            // Panel Fijo al fondo: Teclado Numérico y Botón Guardar
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.surfaceContainerLowest
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(start = 24.dp, end = 24.dp, bottom = 12.dp, top = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    "GUARDAR EN LA BÓVEDA",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.5.sp
-                    )
+                HorizontalDivider(
+                    modifier = Modifier.padding(bottom = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                 )
+
+                NumericKeyboard(
+                    onKeyPress = { key ->
+                        if (key == "." && amount.contains(".")) return@NumericKeyboard
+                        if (amount.contains(".") && amount.substringAfter(".").length >= 2) return@NumericKeyboard
+                        if (amount.length < 10) {
+                            amount += key
+                            viewModel.clearError()
+                        }
+                    },
+                    onDelete = {
+                        if (amount.isNotEmpty()) amount = amount.dropLast(1)
+                    },
+                    onClear = { amount = "" }
+                )
+
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(36.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (uiState.errorMessage != null) {
+                        Text(
+                            text = uiState.errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp, lineHeight = 12.sp),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2
+                        )
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        focusManager.clearFocus()
+                        val amt = amount.toDoubleOrNull() ?: 0.0
+                        when {
+                            amt <= 0 -> viewModel.setError("El monto debe ser mayor a 0")
+                            description.isBlank() -> viewModel.setError("La descripción es requerida")
+                            selectedCategory == null -> viewModel.setError("Debe seleccionar una categoría")
+                            else -> {
+                                viewModel.addTransaction(amt, description, selectedCategory!!.name, type) {
+                                    onNavigateBack()
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("GUARDAR TRANSACCIÓN", style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
-}
-
-@Composable
-fun TransactionTypeToggle(
-    selected: Boolean,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(48.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent,
-        contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = label.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-            )
+    
+    // Clear error when leaving the screen
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearError()
         }
-    }
-}
-
-@Composable
-fun SovereignTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    placeholder: String = "",
-    keyboardOptions: KeyboardOptions = KeyboardOptions.Default
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.5.sp),
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-        )
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { 
-                Text(
-                    placeholder, 
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                ) 
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            keyboardOptions = keyboardOptions,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                unfocusedBorderColor = Color.Transparent, // No-line rule
-                cursorColor = MaterialTheme.colorScheme.primary,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-            ),
-            textStyle = MaterialTheme.typography.bodyLarge
-        )
     }
 }

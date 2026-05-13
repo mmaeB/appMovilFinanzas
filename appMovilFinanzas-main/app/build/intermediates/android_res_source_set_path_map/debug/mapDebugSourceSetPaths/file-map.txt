@@ -1,0 +1,7 @@
+com.upn3.proyecto_finanzas_personales.app-pngs-0 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\build\generated\res\pngs\debug
+com.upn3.proyecto_finanzas_personales.app-updated_navigation_xml-1 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\build\generated\updated_navigation_xml\debug
+com.upn3.proyecto_finanzas_personales.app-packageDebugResources-2 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.upn3.proyecto_finanzas_personales.app-packageDebugResources-3 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.upn3.proyecto_finanzas_personales.app-debug-4 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.upn3.proyecto_finanzas_personales.app-debug-5 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\src\debug\res
+com.upn3.proyecto_finanzas_personales.app-main-6 D:\Italo\UPN\AppsMoviles\appMovilFinanzas-main\app\src\main\res

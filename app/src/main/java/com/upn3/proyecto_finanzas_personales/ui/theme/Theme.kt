@@ -8,33 +8,67 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Primary,
-    onPrimary = SurfaceContainerLowest,
-    primaryContainer = PrimaryContainer,
-    onPrimaryContainer = OnSurface,
-    surface = Surface,
-    onSurface = OnSurface,
-    surfaceVariant = SurfaceContainer,
-    onSurfaceVariant = OnSurface,
-    background = SurfaceContainerLowest,
-    onBackground = OnSurface,
-    outline = OutlineVariant,
-    surfaceContainerLowest = SurfaceContainerLowest,
-    surfaceContainerLow = Surface,
-    surfaceContainer = SurfaceContainer,
-    surfaceContainerHigh = SurfaceContainer,
-    surfaceContainerHighest = SurfaceBright,
-)
+enum class AppTheme {
+    DEFAULT, OCEAN, GOLD, PURPLE, ROSE
+}
+
+fun getColorScheme(theme: AppTheme) = when (theme) {
+    AppTheme.DEFAULT -> darkColorScheme(
+        primary = Primary,
+        onPrimary = SurfaceContainerLowest,
+        primaryContainer = PrimaryContainer,
+        surface = Surface,
+        background = SurfaceContainerLowest,
+        onSurface = OnSurface,
+        surfaceVariant = SurfaceContainer
+    )
+    AppTheme.OCEAN -> darkColorScheme(
+        primary = OceanPrimary,
+        onPrimary = Color.White,
+        primaryContainer = OceanPrimaryContainer,
+        surface = OceanSurface,
+        background = Color(0xFF000814),
+        onSurface = Color.White,
+        surfaceVariant = Color(0xFF001D3D)
+    )
+    AppTheme.GOLD -> darkColorScheme(
+        primary = GoldPrimary,
+        onPrimary = Color.Black,
+        primaryContainer = GoldPrimaryContainer,
+        surface = GoldSurface,
+        background = Color(0xFF000814),
+        onSurface = Color.White,
+        surfaceVariant = Color(0xFF001D3D)
+    )
+    AppTheme.PURPLE -> darkColorScheme(
+        primary = PurplePrimary,
+        onPrimary = Color.Black,
+        primaryContainer = PurplePrimaryContainer,
+        surface = PurpleSurface,
+        background = Color(0xFF121212),
+        onSurface = Color.White,
+        surfaceVariant = Color(0xFF1E1E1E)
+    )
+    AppTheme.ROSE -> darkColorScheme(
+        primary = RosePrimary,
+        onPrimary = Color.White,
+        primaryContainer = RosePrimaryContainer,
+        surface = RoseSurface,
+        background = Color(0xFF1A0A0E),
+        onSurface = Color.White,
+        surfaceVariant = Color(0xFF2D1419)
+    )
+}
 
 @Composable
 fun Proyecto_Finanzas_PersonalesTheme(
-    darkTheme: Boolean = true, // Force dark theme for "The Sovereign Vault"
+    theme: AppTheme = AppTheme.DEFAULT,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = DarkColorScheme
+    val colorScheme = getColorScheme(theme)
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "751154291249",
+    "project_id": "gestordefinanzas-c5f84",
+    "storage_bucket": "gestordefinanzas-c5f84.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:751154291249:android:c6b2299e39342a237d2b10",
+        "android_client_info": {
+          "package_name": "com.upn3.proyecto_finanzas_personales"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBZUrbnUPi7qgRAJ8QIywdpnRANDBL9gP8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

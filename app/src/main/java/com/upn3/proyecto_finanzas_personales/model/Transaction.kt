@@ -8,9 +8,9 @@ enum class TransactionType {
 
 data class Transaction(
     val id: String = UUID.randomUUID().toString(),
-    val amount: Double,
-    val description: String,
-    val origin: String,
-    val type: TransactionType,
+    val amount: Double = 0.0,
+    val description: String = "",
+    val origin: String = "",
+    val type: TransactionType = TransactionType.INCOME,
     val timestamp: Long = System.currentTimeMillis()
 )

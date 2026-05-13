@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.upn3.proyecto_finanzas_personales.app-mergeDebugResources-45:/values-v30/values-v30.xml",
+            "outputFile": "com.upn3.proyecto_finanzas_personales.app-mergeDebugResources-62:/values-v30/values-v30.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\ITALO\\.gradle\\caches\\9.3.1\\transforms\\f84057285ac60a0c215e8764dd8a80e0\\workspace\\transformed\\material3\\res\\values-v30\\values-v30.xml",
+                    "source": "C:\\Users\\imano\\.gradle\\caches\\9.3.1\\transforms\\dde2703509c6df317107ff10065d1fb8\\workspace\\transformed\\material3\\res\\values-v30\\values-v30.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
