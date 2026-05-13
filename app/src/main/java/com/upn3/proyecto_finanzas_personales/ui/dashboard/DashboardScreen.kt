@@ -210,9 +210,19 @@ fun DashboardScreen(
     if (showEditBalanceDialog) {
         AlertDialog(
             onDismissRequest = { showEditBalanceDialog = false },
-            title = { Text("Ajustar Saldo") },
+            title = { 
+                Text(
+                    "GESTIÓN DE BÓVEDA", 
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                ) 
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        "Ingrese el nuevo saldo deseado y elija cómo aplicarlo.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                     OutlinedTextField(
                         value = newBalanceText,
                         onValueChange = { 
@@ -224,38 +234,70 @@ fun DashboardScreen(
                                 }
                             }
                         },
-                        label = { Text("Monto del saldo") },
+                        label = { Text("Nuevo Saldo (S/.)") },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
                         ),
-                        singleLine = true
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
                     )
-                    if (uiState.errorMessage != null && showEditBalanceDialog) {
+                    
+                    if (uiState.errorMessage != null) {
                         Text(
                             uiState.errorMessage!!,
                             color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val balance = newBalanceText.toDoubleOrNull()
-                    if (balance != null && balance >= 0) {
-                        viewModel.updateBalance(balance)
-                        showEditBalanceDialog = false
-                    } else {
-                        viewModel.setError("Ingrese un monto válido mayor o igual a 0")
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                val balance = newBalanceText.toDoubleOrNull()
+                                if (balance != null && balance >= 0) {
+                                    viewModel.adjustBalance(balance)
+                                    showEditBalanceDialog = false
+                                } else {
+                                    viewModel.setError("Ingrese un monto válido")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("AJUSTAR SALDO")
+                        }
+                        
+                        OutlinedButton(
+                            onClick = {
+                                val balance = newBalanceText.toDoubleOrNull()
+                                if (balance != null && balance >= 0) {
+                                    viewModel.resetTransactions(balance)
+                                    showEditBalanceDialog = false
+                                } else {
+                                    viewModel.setError("Ingrese un monto válido")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            ),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("REINICIAR BÓVEDA (BORRAR HISTORIAL)")
+                        }
                     }
-                }) {
-                    Text("Guardar")
                 }
             },
+            confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showEditBalanceDialog = false }) {
-                    Text("Cancelar")
+                    Text("CANCELAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         )

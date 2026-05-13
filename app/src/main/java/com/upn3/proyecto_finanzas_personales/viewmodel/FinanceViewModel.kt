@@ -397,9 +397,43 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateBalance(newBalance: Double) {
-        allTransactions.clear()
-        addTransaction(newBalance, "Ajuste de Saldo", "Sistema", TransactionType.INCOME)
+    fun adjustBalance(newBalance: Double) {
+        val currentBalance = uiState.value.balance
+        val diff = newBalance - currentBalance
+        if (diff == 0.0) return
+
+        val type = if (diff > 0) TransactionType.INCOME else TransactionType.EXPENSE
+        addTransaction(kotlin.math.abs(diff), "Ajuste de Saldo", "Sistema", type)
+    }
+
+    fun resetTransactions(initialBalance: Double) {
+        val email = uiState.value.currentUser?.email ?: return
+        viewModelScope.launch {
+            try {
+                val transactionsRef = db.collection("users").document(email).collection("transactions")
+                val snapshot = transactionsRef.get().await()
+                
+                val batch = db.batch()
+                snapshot.documents.forEach { batch.delete(it.reference) }
+                batch.commit().await()
+                
+                allTransactions.clear()
+                
+                if (initialBalance > 0) {
+                    val transaction = Transaction(
+                        amount = initialBalance,
+                        description = "Reinicio de Saldo",
+                        origin = "Sistema",
+                        type = TransactionType.INCOME
+                    )
+                    transactionsRef.document(transaction.id).set(transaction).await()
+                    allTransactions.add(transaction)
+                }
+                updateState()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "Error al reiniciar: ${e.message}") }
+            }
+        }
     }
 
     private fun updateState() {
