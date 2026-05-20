@@ -121,31 +121,31 @@ fun DashboardScreen(
                     selected = true,
                     onClick = { /* Ya estamos aquí */ },
                     icon = { Icon(Icons.Default.Dashboard, contentDescription = null) },
-                    label = { Text("Panel") }
+                    label = { Text("Panel", fontSize = 10.sp, maxLines = 1) }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { onNavigateToCategories() },
                     icon = { Icon(Icons.Default.Category, contentDescription = null) },
-                    label = { Text("Categorías") }
+                    label = { Text("Categorías", fontSize = 10.sp, maxLines = 1) }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { showGlobalBalanceDialog = true },
                     icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
-                    label = { Text("Global") }
+                    label = { Text("Global", fontSize = 10.sp, maxLines = 1) }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = { showTransferDialog = true },
                     icon = { Icon(Icons.Default.SwapHoriz, contentDescription = null) },
-                    label = { Text("Transferir") }
+                    label = { Text("Transferir", fontSize = 10.sp, maxLines = 1) }
                 )
                 NavigationBarItem(
                     selected = false,
                     onClick = onNavigateToProfile,
                     icon = { Icon(Icons.Default.Person, contentDescription = null) },
-                    label = { Text("Perfil") }
+                    label = { Text("Perfil", fontSize = 10.sp, maxLines = 1) }
                 )
             }
         },
@@ -542,7 +542,7 @@ fun DashboardScreen(
                     }
 
                     if (selectedCurrency.first != editingWallet!!.currencyCode) {
-                        if (uiState.isLoading) {
+                        if (uiState.isExchangeLoading) {
                             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                             }
@@ -595,7 +595,8 @@ fun DashboardScreen(
                             viewModel.updateWallet(updatedWallet)
                             showEditWalletDialog = false
                         },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        enabled = !uiState.isExchangeLoading
                     ) {
                         Text("Guardar")
                     }
@@ -612,7 +613,7 @@ fun DashboardScreen(
     if (showTransferDialog) {
         val fromWallet = uiState.selectedWallet
         
-        LaunchedEffect(selectedToWallet) {
+        LaunchedEffect(selectedToWallet?.id) {
             if (fromWallet != null && selectedToWallet != null) {
                 viewModel.fetchExchangeRatePreview(fromWallet.currencyCode, selectedToWallet!!.currencyCode)
             }
@@ -643,37 +644,61 @@ fun DashboardScreen(
 
                     OutlinedTextField(
                         value = transferAmount,
-                        onValueChange = { transferAmount = it },
+                        onValueChange = { 
+                            val sanitized = it.replace(",", ".")
+                            if (sanitized.isEmpty() || sanitized.toDoubleOrNull() != null) {
+                                if (!sanitized.contains(".") || sanitized.substringAfter(".").length <= 2) {
+                                    transferAmount = sanitized
+                                    viewModel.clearError()
+                                }
+                            }
+                        },
                         label = { Text("Monto a transferir (${fromWallet?.currencyCode})") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
-                        )
+                        ),
+                        singleLine = true
                     )
 
                     if (selectedToWallet != null && fromWallet != null && fromWallet.currencyCode != selectedToWallet!!.currencyCode) {
-                        val rate = uiState.exchangeRatePreview
-                        if (rate != null) {
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("Tipo de cambio actual:", style = MaterialTheme.typography.labelSmall)
-                                    Text(
-                                        "1 ${fromWallet.currencyCode} = ${String.format("%.4f", rate)} ${selectedToWallet!!.currencyCode}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    val amt = transferAmount.toDoubleOrNull() ?: 0.0
-                                    Text(
-                                        "Recibirán: ${selectedToWallet!!.currencyCode} ${String.format("%.2f", amt * rate)}",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
+                        if (uiState.isExchangeLoading) {
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        } else {
+                            val rate = uiState.exchangeRatePreview
+                            if (rate != null) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f))
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text("Tipo de cambio actual:", style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            "1 ${fromWallet.currencyCode} = ${String.format("%.4f", rate)} ${selectedToWallet!!.currencyCode}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        val amt = transferAmount.toDoubleOrNull() ?: 0.0
+                                        Text(
+                                            "Recibirán: ${selectedToWallet!!.currencyCode} ${String.format("%.2f", amt * rate)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
                         }
+                    }
+
+                    if (uiState.errorMessage != null) {
+                        Text(
+                            text = uiState.errorMessage!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
                 }
             },
@@ -691,9 +716,13 @@ fun DashboardScreen(
                             }
                         }
                     },
-                    enabled = transferAmount.toDoubleOrNull() != null && selectedToWallet != null
+                    enabled = transferAmount.toDoubleOrNull() != null && selectedToWallet != null && !uiState.isLoading && !uiState.isExchangeLoading
                 ) {
-                    Text("Transferir")
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Text("Transferir")
+                    }
                 }
             },
             dismissButton = {

@@ -32,6 +32,7 @@ data class FinanceState(
     val errorMessage: String? = null,
     val selectedTheme: AppTheme = AppTheme.DEFAULT,
     val isLoading: Boolean = true,
+    val isExchangeLoading: Boolean = false,
     val exchangeRatePreview: Double? = null,
     val globalBalance: Double = 0.0,
     val preferredCurrency: String = "PEN",
@@ -211,6 +212,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 userPreferences.saveUserEmail(email)
                 
                 _uiState.update { it.copy(currentUser = newUser, errorMessage = null) }
+                loadWallets()
                 loadTransactions()
                 loadCategories()
                 onSuccess()
@@ -236,6 +238,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         val theme = try { AppTheme.valueOf(user.theme) } catch (e: Exception) { AppTheme.DEFAULT }
                         userPreferences.saveUserEmail(email)
                         _uiState.update { it.copy(currentUser = user, errorMessage = null, selectedTheme = theme) }
+                        loadWallets()
                         loadTransactions()
                         loadCategories()
                         onSuccess()
@@ -298,8 +301,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     if (wallet.currencyCode == targetCurrency) {
                         total += wallet.balance
                     } else {
-                        val rateToTarget = (rates[wallet.currencyCode] as? Double) ?: 1.0
-                        total += wallet.balance / rateToTarget
+                        val rateValue = rates[wallet.currencyCode]
+                        val rateToTarget = when (rateValue) {
+                            is Double -> rateValue
+                            is Number -> rateValue.toDouble()
+                            else -> 1.0
+                        }
+                        total += if (rateToTarget != 0.0) wallet.balance / rateToTarget else wallet.balance
                     }
                 }
                 _uiState.update { it.copy(globalBalance = total, isLoading = false) }
@@ -406,12 +414,12 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     fun fetchExchangeRatePreview(fromCode: String, toCode: String) {
         if (fromCode == toCode) {
-            _uiState.update { it.copy(exchangeRatePreview = 1.0, isLoading = false) }
+            _uiState.update { it.copy(exchangeRatePreview = 1.0, isExchangeLoading = false) }
             return
         }
         viewModelScope.launch {
             try {
-                _uiState.update { it.copy(isLoading = true) }
+                _uiState.update { it.copy(isExchangeLoading = true) }
                 
                 var rates: Map<String, Double> = emptyMap()
                 
@@ -445,12 +453,12 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 }
                 val multiplier = if (rateToSource != 0.0) 1.0 / rateToSource else 1.0
                 
-                _uiState.update { it.copy(exchangeRatePreview = multiplier, isLoading = false) }
+                _uiState.update { it.copy(exchangeRatePreview = multiplier, isExchangeLoading = false) }
             } catch (e: Exception) {
                 _uiState.update { 
                     it.copy(
                         exchangeRatePreview = 1.0, 
-                        isLoading = false
+                        isExchangeLoading = false
                     ) 
                 }
             }
@@ -780,9 +788,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 if (tIdx != -1) allWallets[tIdx] = allWallets[tIdx].copy(balance = allWallets[tIdx].balance + convertedAmount)
 
                 updateState()
+                _uiState.update { it.copy(isLoading = false) }
                 onSuccess()
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Error en la transferencia: ${e.message}") }
+                _uiState.update { it.copy(errorMessage = "Error en la transferencia: ${e.message}", isLoading = false) }
             }
         }
     }
