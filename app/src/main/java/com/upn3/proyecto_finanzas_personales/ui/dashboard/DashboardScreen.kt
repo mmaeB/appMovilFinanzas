@@ -52,6 +52,25 @@ fun DashboardScreen(
     var editDescription by remember { mutableStateOf("") }
     var editCategory by remember { mutableStateOf<Category?>(null) }
 
+    var showTransferDialog by remember { mutableStateOf(false) }
+    var transferAmount by remember { mutableStateOf("") }
+    var selectedToWallet by remember { mutableStateOf<com.upn3.proyecto_finanzas_personales.model.Wallet?>(null) }
+    var showAddWalletDialog by remember { mutableStateOf(false) }
+    var showEditWalletDialog by remember { mutableStateOf(false) }
+    var editingWallet by remember { mutableStateOf<com.upn3.proyecto_finanzas_personales.model.Wallet?>(null) }
+    var showGlobalBalanceDialog by remember { mutableStateOf(false) }
+
+    val currencies = listOf(
+        Pair("PEN", "🇵🇪 Sol Peruano"),
+        Pair("USD", "🇺🇸 Dólar Estadounidense"),
+        Pair("EUR", "🇪🇺 Euro"),
+        Pair("GBP", "🇬🇧 Libra Esterlina"),
+        Pair("JPY", "🇯🇵 Yen Japonés"),
+        Pair("MXN", "🇲🇽 Peso Mexicano"),
+        Pair("CLP", "🇨🇱 Peso Chileno"),
+        Pair("BRL", "🇧🇷 Real Brasileño")
+    )
+
     val currentUser = uiState.currentUser
     val scope = rememberCoroutineScope()
     var isRefreshing by remember { mutableStateOf(false) }
@@ -67,6 +86,7 @@ fun DashboardScreen(
     val onRefresh: () -> Unit = {
         scope.launch {
             isRefreshing = true
+            viewModel.loadWallets()
             viewModel.loadTransactions()
             delay(1000) // Simular un pequeño retraso para el feedback visual
             isRefreshing = false
@@ -83,20 +103,51 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Mi Billetera",
+                            text = uiState.selectedWallet?.name ?: "Cargando...",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 },
                 actions = {
-                    IconButton(onClick = onNavigateToProfile) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configuración")
-                    }
                     IconButton(onClick = { viewModel.logout(onLogout) }) {
                         Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Cerrar Sesión")
                     }
                 }
             )
+        },
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    selected = true,
+                    onClick = { /* Ya estamos aquí */ },
+                    icon = { Icon(Icons.Default.Dashboard, contentDescription = null) },
+                    label = { Text("Panel") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigateToCategories() },
+                    icon = { Icon(Icons.Default.Category, contentDescription = null) },
+                    label = { Text("Categorías") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { showGlobalBalanceDialog = true },
+                    icon = { Icon(Icons.Default.AccountBalanceWallet, contentDescription = null) },
+                    label = { Text("Global") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { showTransferDialog = true },
+                    icon = { Icon(Icons.Default.SwapHoriz, contentDescription = null) },
+                    label = { Text("Transferir") }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onNavigateToProfile,
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Perfil") }
+                )
+            }
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onNavigateToTransactions) {
@@ -119,6 +170,65 @@ fun DashboardScreen(
             ) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Wallet Selector / Carousel
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        items(uiState.wallets) { wallet ->
+                            val isSelected = wallet.id == uiState.selectedWallet?.id
+                            Card(
+                                onClick = { viewModel.selectWallet(wallet) },
+                                modifier = Modifier.width(200.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) Color(wallet.color) else MaterialTheme.colorScheme.surfaceVariant
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 8.dp else 2.dp)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        wallet.name, 
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        "${wallet.currencyCode} ${String.format("%.2f", wallet.balance)}",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    if (isSelected) {
+                                        IconButton(
+                                            onClick = { 
+                                                editingWallet = wallet
+                                                showEditWalletDialog = true 
+                                            },
+                                            modifier = Modifier.align(Alignment.End).size(24.dp)
+                                        ) {
+                                            Icon(Icons.Default.Settings, contentDescription = "Editar Billetera", tint = Color.White, modifier = Modifier.size(16.dp))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        item {
+                            Card(
+                                onClick = { showAddWalletDialog = true },
+                                modifier = Modifier.width(150.dp).height(85.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Add, contentDescription = "Añadir Billetera")
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -127,12 +237,12 @@ fun DashboardScreen(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("Saldo Actual", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Saldo de ${uiState.selectedWallet?.name ?: "Billetera"}", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "S/.${String.format("%.2f", uiState.balance)}",
+                                    text = "${uiState.selectedWallet?.currencyCode ?: "S/."} ${String.format("%.2f", uiState.balance)}",
                                     style = MaterialTheme.typography.displayMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
@@ -205,6 +315,393 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showGlobalBalanceDialog) {
+        var expandedCurrency by remember { mutableStateOf(false) }
+        val lastUpdateText = if (uiState.lastRatesUpdate > 0) {
+            val sdf = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", java.util.Locale.getDefault())
+            "Actualizado: ${sdf.format(java.util.Date(uiState.lastRatesUpdate))}"
+        } else {
+            "Cargando tasas..."
+        }
+
+        AlertDialog(
+            onDismissRequest = { showGlobalBalanceDialog = false },
+            title = { Text("Resumen Global", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Total combinado:", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            lastUpdateText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "${uiState.preferredCurrency} ${String.format("%.2f", uiState.globalBalance)}",
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+
+                    Box {
+                        OutlinedTextField(
+                            value = currencies.find { it.first == uiState.preferredCurrency }?.second ?: uiState.preferredCurrency,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Convertir a") },
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                IconButton(onClick = { expandedCurrency = true }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                }
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = expandedCurrency,
+                            onDismissRequest = { expandedCurrency = false }
+                        ) {
+                            currencies.forEach { currency ->
+                                DropdownMenuItem(
+                                    text = { Text(currency.second) },
+                                    onClick = {
+                                        viewModel.setPreferredCurrency(currency.first)
+                                        expandedCurrency = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider()
+                    
+                    Text("Desglose por billetera:", style = MaterialTheme.typography.labelLarge)
+                    uiState.wallets.forEach { wallet ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(wallet.name, style = MaterialTheme.typography.bodySmall)
+                            Text("${wallet.currencyCode} ${String.format("%.2f", wallet.balance)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showGlobalBalanceDialog = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+
+    if (showAddWalletDialog) {
+        var walletName by remember { mutableStateOf("") }
+        var selectedCurrency by remember { mutableStateOf(currencies[0]) }
+        var expanded by remember { mutableStateOf(false) }
+        
+        AlertDialog(
+            onDismissRequest = { showAddWalletDialog = false },
+            title = { Text("Nueva Billetera") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = walletName,
+                        onValueChange = { walletName = it },
+                        label = { Text("Nombre de la Billetera") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    Box {
+                        OutlinedTextField(
+                            value = selectedCurrency.second,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Moneda") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                IconButton(onClick = { expanded = true }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                }
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.fillMaxWidth(0.7f)
+                        ) {
+                            currencies.forEach { currency ->
+                                DropdownMenuItem(
+                                    text = { Text(currency.second) },
+                                    onClick = {
+                                        selectedCurrency = currency
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    if (walletName.isNotBlank()) {
+                        viewModel.createWallet(com.upn3.proyecto_finanzas_personales.model.Wallet(
+                            name = walletName,
+                            currencyCode = selectedCurrency.first
+                        ))
+                        showAddWalletDialog = false
+                    }
+                }) {
+                    Text("Crear")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddWalletDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showEditWalletDialog && editingWallet != null) {
+        var walletName by remember { mutableStateOf(editingWallet!!.name) }
+        var selectedCurrency by remember { mutableStateOf(currencies.find { it.first == editingWallet!!.currencyCode } ?: currencies[0]) }
+        var expanded by remember { mutableStateOf(false) }
+
+        AlertDialog(
+            onDismissRequest = { showEditWalletDialog = false },
+            title = { Text("Editar Billetera") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = walletName,
+                        onValueChange = { walletName = it },
+                        label = { Text("Nombre") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    Box {
+                        OutlinedTextField(
+                            value = selectedCurrency.second,
+                            onValueChange = { },
+                            readOnly = true,
+                            label = { Text("Moneda") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                IconButton(onClick = { expanded = true }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                }
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            currencies.forEach { currency ->
+                                DropdownMenuItem(
+                                    text = { Text(currency.second) },
+                                    onClick = {
+                                        selectedCurrency = currency
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(selectedCurrency.first) {
+                        if (editingWallet != null && selectedCurrency.first != editingWallet!!.currencyCode) {
+                            viewModel.fetchExchangeRatePreview(editingWallet!!.currencyCode, selectedCurrency.first)
+                        } else {
+                            viewModel.clearExchangeRatePreview()
+                        }
+                    }
+
+                    if (selectedCurrency.first != editingWallet!!.currencyCode) {
+                        if (uiState.isLoading) {
+                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        } else if (uiState.exchangeRatePreview != null) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Vista previa del cambio:", style = MaterialTheme.typography.labelSmall)
+                                    Text(
+                                        "1 ${editingWallet!!.currencyCode} = ${String.format("%.4f", uiState.exchangeRatePreview)} ${selectedCurrency.first}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Saldo estimado: ${selectedCurrency.first} ${String.format("%.2f", editingWallet!!.balance * uiState.exchangeRatePreview!!)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.deleteWallet(editingWallet!!.id)
+                            showEditWalletDialog = false
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Eliminar")
+                    }
+                    Button(
+                        onClick = {
+                            val rate = uiState.exchangeRatePreview ?: 1.0
+                            val updatedWallet = editingWallet!!.copy(
+                                name = walletName,
+                                currencyCode = selectedCurrency.first,
+                                balance = if (selectedCurrency.first != editingWallet!!.currencyCode) editingWallet!!.balance * rate else editingWallet!!.balance
+                            )
+                            viewModel.updateWallet(updatedWallet)
+                            showEditWalletDialog = false
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Guardar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditWalletDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showTransferDialog) {
+        val fromWallet = uiState.selectedWallet
+        
+        LaunchedEffect(selectedToWallet) {
+            if (fromWallet != null && selectedToWallet != null) {
+                viewModel.fetchExchangeRatePreview(fromWallet.currencyCode, selectedToWallet!!.currencyCode)
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showTransferDialog = false },
+            title = { Text("Transferir entre Billeteras") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Desde: ${fromWallet?.name} (${fromWallet?.currencyCode})", style = MaterialTheme.typography.bodyMedium)
+                    
+                    Text("Hacia:", style = MaterialTheme.typography.labelLarge)
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(uiState.wallets.filter { it.id != fromWallet?.id }) { wallet ->
+                            val isSelected = selectedToWallet?.id == wallet.id
+                            val flag = currencies.find { it.first == wallet.currencyCode }?.second?.take(2) ?: "💰"
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { 
+                                    selectedToWallet = wallet
+                                    if (fromWallet != null) viewModel.fetchExchangeRatePreview(fromWallet.currencyCode, wallet.currencyCode)
+                                },
+                                label = { Text("$flag ${wallet.name}") }
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = transferAmount,
+                        onValueChange = { transferAmount = it },
+                        label = { Text("Monto a transferir (${fromWallet?.currencyCode})") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
+                        )
+                    )
+
+                    if (selectedToWallet != null && fromWallet != null && fromWallet.currencyCode != selectedToWallet!!.currencyCode) {
+                        val rate = uiState.exchangeRatePreview
+                        if (rate != null) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.2f))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Tipo de cambio actual:", style = MaterialTheme.typography.labelSmall)
+                                    Text(
+                                        "1 ${fromWallet.currencyCode} = ${String.format("%.4f", rate)} ${selectedToWallet!!.currencyCode}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    val amt = transferAmount.toDoubleOrNull() ?: 0.0
+                                    Text(
+                                        "Recibirán: ${selectedToWallet!!.currencyCode} ${String.format("%.2f", amt * rate)}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val amt = transferAmount.toDoubleOrNull()
+                        val from = fromWallet
+                        val to = selectedToWallet
+                        if (amt != null && from != null && to != null) {
+                            viewModel.transferMoney(from, to, amt) {
+                                showTransferDialog = false
+                                transferAmount = ""
+                                selectedToWallet = null
+                            }
+                        }
+                    },
+                    enabled = transferAmount.toDoubleOrNull() != null && selectedToWallet != null
+                ) {
+                    Text("Transferir")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTransferDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     if (showEditBalanceDialog) {

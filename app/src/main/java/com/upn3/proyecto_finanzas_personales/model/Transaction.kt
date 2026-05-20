@@ -8,6 +8,7 @@ enum class TransactionType {
 
 data class Transaction(
     val id: String = UUID.randomUUID().toString(),
+    val walletId: String = "default",
     val amount: Double = 0.0,
     val description: String = "",
     val origin: String = "",
