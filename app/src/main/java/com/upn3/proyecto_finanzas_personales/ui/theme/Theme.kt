@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
@@ -12,10 +13,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
 
 enum class AppTheme {
-    DEFAULT, OCEAN, GOLD, PURPLE, ROSE
+    DEFAULT, OCEAN, GOLD, PURPLE, ROSE, LIGHT
 }
 
 fun getColorScheme(theme: AppTheme) = when (theme) {
+    AppTheme.LIGHT -> lightColorScheme(
+        primary = LightPrimary,
+        onPrimary = Color.White,
+        primaryContainer = LightPrimaryContainer,
+        onPrimaryContainer = Color(0xFF00210B),
+        surface = LightSurface,
+        onSurface = LightOnSurface,
+        background = LightSurface,
+        onBackground = LightOnSurface,
+        surfaceVariant = LightSurfaceContainer,
+        onSurfaceVariant = Color(0xFF424940)
+    )
     AppTheme.DEFAULT -> darkColorScheme(
         primary = Primary,
         onPrimary = SurfaceContainerLowest,
@@ -74,7 +87,8 @@ fun Proyecto_Finanzas_PersonalesTheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.surface.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = 
+                theme == AppTheme.LIGHT
         }
     }
 

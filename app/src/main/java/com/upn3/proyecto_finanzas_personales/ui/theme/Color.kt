@@ -32,6 +32,13 @@ val RosePrimary = Color(0xFFF06292)
 val RosePrimaryContainer = Color(0xFFC2185B)
 val RoseSurface = Color(0xFF1A0A0E)
 
+// Light Theme Colors
+val LightPrimary = Color(0xFF006D32)
+val LightPrimaryContainer = Color(0xFF99F6B4)
+val LightSurface = Color(0xFFFBFDF8)
+val LightOnSurface = Color(0xFF191C19)
+val LightSurfaceContainer = Color(0xFFEDF1EB)
+
 // Legacy colors (if needed for compatibility temporarily)
 val Purple80 = Color(0xFFD0BCFF)
 val PurpleGrey80 = Color(0xFFCCC2DC)
