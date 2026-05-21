@@ -15,6 +15,14 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import android.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
 
 import com.upn3.proyecto_finanzas_personales.network.CurrencyService
 import com.upn3.proyecto_finanzas_personales.network.CurrencyResponse
@@ -220,6 +228,151 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.update { it.copy(errorMessage = "Error al registrar: ${e.message}") }
             }
         }
+    }
+
+    // --- SECCIÓN DE IMPORTACIÓN Y EXPORTACIÓN CSV CON CIFRADO OPCIONAL ---
+
+    /**
+     * Exporta todas las transacciones a un archivo CSV.
+     * Si se proporciona una contraseña, se cifra el contenido usando AES.
+     * Comentario: Se utiliza PBKDF2 para generar la clave a partir de la contraseña
+     * y AES/CBC/PKCS5Padding para el cifrado seguro.
+     */
+    fun exportTransactionsToCsv(uri: Uri, password: String?, context: android.content.Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Generar contenido CSV básico
+                val csvHeader = "id,walletId,amount,description,origin,type,timestamp\n"
+                val csvData = allTransactions.joinToString("\n") { 
+                    "${it.id},${it.walletId},${it.amount},${it.description.replace(",", ";")},${it.origin},${it.type},${it.timestamp}"
+                }
+                val fullCsv = csvHeader + csvData
+                
+                // Cifrar si hay contraseña
+                val finalData = if (!password.isNullOrBlank()) {
+                    encryptData(fullCsv, password)
+                } else {
+                    fullCsv
+                }
+                
+                // Escribir en el archivo seleccionado por el usuario
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(finalData.toByteArray())
+                }
+                
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(errorMessage = "Exportación exitosa en el archivo seleccionado") }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(errorMessage = "Error al exportar: ${e.message}") }
+                }
+            }
+        }
+    }
+
+    /**
+     * Importa transacciones desde un archivo CSV.
+     * Soporta archivos planos o cifrados (si se provee la contraseña correcta).
+     * Comentario: Lee el archivo como texto, intenta descifrar si es necesario,
+     * y luego parsea línea por línea para subir los datos a Firestore mediante un Batch.
+     */
+    fun importTransactionsFromCsv(uri: Uri, password: String?, context: android.content.Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() } ?: return@launch
+                
+                // Descifrar si hay contraseña
+                val decryptedContent = if (!password.isNullOrBlank()) {
+                    try {
+                        decryptData(content, password)
+                    } catch (e: Exception) {
+                        throw Exception("Contraseña incorrecta o formato de archivo inválido")
+                    }
+                } else {
+                    content
+                }
+                
+                val lines = decryptedContent.lines()
+                if (lines.isEmpty()) return@launch
+                
+                val transactions = mutableListOf<Transaction>()
+                // Omitir encabezado e iterar
+                lines.drop(1).forEach { line ->
+                    if (line.isBlank()) return@forEach
+                    val parts = line.split(",")
+                    if (parts.size >= 7) {
+                        transactions.add(Transaction(
+                            id = parts[0],
+                            walletId = parts[1],
+                            amount = parts[2].toDoubleOrNull() ?: 0.0,
+                            description = parts[3].replace(";", ","),
+                            origin = parts[4],
+                            type = try { TransactionType.valueOf(parts[5]) } catch(e:Exception) { TransactionType.EXPENSE },
+                            timestamp = parts[6].toLongOrNull() ?: System.currentTimeMillis()
+                        ))
+                    }
+                }
+                
+                if (transactions.isEmpty()) throw Exception("No se encontraron transacciones válidas")
+
+                // Subir a Firestore en un lote (batch) para mayor eficiencia
+                val userEmail = uiState.value.currentUser?.email ?: return@launch
+                val batch = db.batch()
+                transactions.forEach { transaction ->
+                    val docRef = db.collection("users").document(userEmail)
+                        .collection("transactions").document(transaction.id)
+                    batch.set(docRef, transaction)
+                }
+                batch.commit().await()
+                
+                // Actualizar la UI local
+                loadTransactions()
+                
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(errorMessage = "Importación exitosa: ${transactions.size} registros añadidos") }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(errorMessage = "Error al importar: ${e.message}") }
+                }
+            }
+        }
+    }
+
+    // --- FUNCIONES AUXILIARES DE CIFRADO ---
+
+    private fun encryptData(data: String, password: String): String {
+        val salt = "finance_app_salt".toByteArray() // Sal fija para el ejemplo
+        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+        val spec = PBEKeySpec(password.toCharArray(), salt, 65536, 128)
+        val tmp = factory.generateSecret(spec)
+        val secret = SecretKeySpec(tmp.encoded, "AES")
+        
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, secret)
+        val params = cipher.parameters
+        val iv = params.getParameterSpec(IvParameterSpec::class.java).iv
+        val ciphertext = cipher.doFinal(data.toByteArray(Charsets.UTF_8))
+        
+        // Retornamos IV + Ciphertext en Base64 para poder recuperarlo después
+        return Base64.encodeToString(iv + ciphertext, Base64.DEFAULT)
+    }
+
+    private fun decryptData(encryptedData: String, password: String): String {
+        val combined = Base64.decode(encryptedData, Base64.DEFAULT)
+        val iv = combined.sliceArray(0 until 16)
+        val ciphertext = combined.sliceArray(16 until combined.size)
+        
+        val salt = "finance_app_salt".toByteArray()
+        val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1")
+        val spec = PBEKeySpec(password.toCharArray(), salt, 65536, 128)
+        val tmp = factory.generateSecret(spec)
+        val secret = SecretKeySpec(tmp.encoded, "AES")
+        
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(Cipher.DECRYPT_MODE, secret, IvParameterSpec(iv))
+        return String(cipher.doFinal(ciphertext), Charsets.UTF_8)
     }
 
     fun login(email: String, pass: String, onSuccess: () -> Unit) {
@@ -553,8 +706,14 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         val wallet = allWallets.find { it.id == transaction.walletId }
         
         if (oldTransaction != null && wallet != null) {
-            val balanceWithoutOld = wallet.balance - (if (oldTransaction.type == TransactionType.INCOME) oldTransaction.amount else -oldTransaction.amount)
-            val newBalance = balanceWithoutOld + (if (transaction.type == TransactionType.INCOME) transaction.amount else -transaction.amount)
+            val balanceWithoutOld = wallet.balance - when(oldTransaction.type) {
+                TransactionType.INCOME -> oldTransaction.amount
+                TransactionType.EXPENSE, TransactionType.TRANSFER -> -oldTransaction.amount
+            }
+            val newBalance = balanceWithoutOld + when(transaction.type) {
+                TransactionType.INCOME -> transaction.amount
+                TransactionType.EXPENSE, TransactionType.TRANSFER -> -transaction.amount
+            }
             
             if (newBalance < 0) {
                 _uiState.update { it.copy(errorMessage = "Esta modificación resultaría en un saldo negativo en la billetera ${wallet.name}.") }
@@ -570,8 +729,15 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     batch.set(transRef, transaction)
                     
                     if (oldTransaction != null && wallet != null) {
-                        val diff = (if (transaction.type == TransactionType.INCOME) transaction.amount else -transaction.amount) -
-                                   (if (oldTransaction.type == TransactionType.INCOME) oldTransaction.amount else -oldTransaction.amount)
+                        val oldImpact = when(oldTransaction.type) {
+                            TransactionType.INCOME -> oldTransaction.amount
+                            TransactionType.EXPENSE, TransactionType.TRANSFER -> -oldTransaction.amount
+                        }
+                        val newImpact = when(transaction.type) {
+                            TransactionType.INCOME -> transaction.amount
+                            TransactionType.EXPENSE, TransactionType.TRANSFER -> -transaction.amount
+                        }
+                        val diff = newImpact - oldImpact
                         
                         if (diff != 0.0) {
                             val walletRef = db.collection("users").document(email)
@@ -587,8 +753,15 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 }
                 
                 if (oldTransaction != null && wallet != null) {
-                    val diff = (if (transaction.type == TransactionType.INCOME) transaction.amount else -transaction.amount) -
-                               (if (oldTransaction.type == TransactionType.INCOME) oldTransaction.amount else -oldTransaction.amount)
+                    val oldImpact = when(oldTransaction.type) {
+                        TransactionType.INCOME -> oldTransaction.amount
+                        TransactionType.EXPENSE, TransactionType.TRANSFER -> -oldTransaction.amount
+                    }
+                    val newImpact = when(transaction.type) {
+                        TransactionType.INCOME -> transaction.amount
+                        TransactionType.EXPENSE, TransactionType.TRANSFER -> -transaction.amount
+                    }
+                    val diff = newImpact - oldImpact
                     val wIndex = allWallets.indexOfFirst { it.id == wallet.id }
                     if (wIndex != -1) {
                         allWallets[wIndex] = allWallets[wIndex].copy(balance = allWallets[wIndex].balance + diff)
@@ -626,7 +799,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         val wallet = allWallets.find { it.id == transactionToDelete?.walletId }
         
         if (transactionToDelete != null && wallet != null) {
-            val impact = if (transactionToDelete.type == TransactionType.INCOME) -transactionToDelete.amount else transactionToDelete.amount
+            val impact = when(transactionToDelete.type) {
+                TransactionType.INCOME -> -transactionToDelete.amount
+                TransactionType.EXPENSE, TransactionType.TRANSFER -> transactionToDelete.amount
+            }
             if (wallet.balance + impact < 0) {
                 _uiState.update { it.copy(errorMessage = "No se puede eliminar: el saldo de la billetera ${wallet.name} quedaría en negativo.") }
                 return
@@ -641,7 +817,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     batch.delete(transRef)
                     
                     if (transactionToDelete != null && wallet != null) {
-                        val impact = if (transactionToDelete.type == TransactionType.INCOME) -transactionToDelete.amount else transactionToDelete.amount
+                        val impact = when(transactionToDelete.type) {
+                            TransactionType.INCOME -> -transactionToDelete.amount
+                            TransactionType.EXPENSE, TransactionType.TRANSFER -> transactionToDelete.amount
+                        }
                         val walletRef = db.collection("users").document(email)
                             .collection("wallets").document(wallet.id)
                         batch.update(walletRef, "balance", wallet.balance + impact)
@@ -650,7 +829,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 
                 allTransactions.removeAll { it.id == id }
                 if (transactionToDelete != null && wallet != null) {
-                    val impact = if (transactionToDelete.type == TransactionType.INCOME) -transactionToDelete.amount else transactionToDelete.amount
+                    val impact = when(transactionToDelete.type) {
+                        TransactionType.INCOME -> -transactionToDelete.amount
+                        TransactionType.EXPENSE, TransactionType.TRANSFER -> transactionToDelete.amount
+                    }
                     val wIndex = allWallets.indexOfFirst { it.id == wallet.id }
                     if (wIndex != -1) {
                         allWallets[wIndex] = allWallets[wIndex].copy(balance = allWallets[wIndex].balance + impact)
@@ -678,6 +860,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
+        if (type == TransactionType.TRANSFER && amount > wallet.balance) {
+            _uiState.update { it.copy(errorMessage = "Saldo insuficiente en ${wallet.name} para transferencia.") }
+            return
+        }
+
         val transaction = Transaction(
             amount = amount,
             description = description,
@@ -695,14 +882,23 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     
                     val walletRef = db.collection("users").document(email)
                         .collection("wallets").document(targetWalletId)
-                    val newBalance = if (type == TransactionType.INCOME) wallet.balance + amount else wallet.balance - amount
+                    val newBalance = when(type) {
+                        TransactionType.INCOME -> wallet.balance + amount
+                        TransactionType.EXPENSE -> wallet.balance - amount
+                        TransactionType.TRANSFER -> wallet.balance - amount // Asumiendo que addTransaction con TRANSFER es salida (no se suele usar así directamente pero por consistencia)
+                    }
                     batch.update(walletRef, "balance", newBalance)
                 }.await()
                 
                 allTransactions.add(0, transaction)
                 val wIndex = allWallets.indexOfFirst { it.id == targetWalletId }
                 if (wIndex != -1) {
-                    allWallets[wIndex] = allWallets[wIndex].copy(balance = if (type == TransactionType.INCOME) allWallets[wIndex].balance + amount else allWallets[wIndex].balance - amount)
+                    val currentBal = allWallets[wIndex].balance
+                    allWallets[wIndex] = allWallets[wIndex].copy(balance = when(type) {
+                        TransactionType.INCOME -> currentBal + amount
+                        TransactionType.EXPENSE -> currentBal - amount
+                        TransactionType.TRANSFER -> currentBal - amount
+                    })
                 }
                 updateState()
                 onSuccess()
@@ -756,7 +952,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     amount = amount,
                     description = "Transferencia a ${toWallet.name}",
                     origin = "Transferencia",
-                    type = TransactionType.EXPENSE,
+                    type = TransactionType.TRANSFER,
                     walletId = fromWallet.id
                 )
 
@@ -764,7 +960,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     amount = convertedAmount,
                     description = "Transferencia desde ${fromWallet.name}",
                     origin = "Transferencia",
-                    type = TransactionType.INCOME,
+                    type = TransactionType.TRANSFER,
                     walletId = toWallet.id
                 )
 

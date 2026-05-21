@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -40,7 +41,8 @@ fun DashboardScreen(
     onNavigateToTransactions: () -> Unit,
     onNavigateToCategories: () -> Unit,
     onLogout: () -> Unit,
-    onNavigateToProfile: () -> Unit
+    onNavigateToProfile: () -> Unit,
+    onNavigateToReports: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showEditBalanceDialog by remember { mutableStateOf(false) }
@@ -51,6 +53,28 @@ fun DashboardScreen(
     var editAmount by remember { mutableStateOf("") }
     var editDescription by remember { mutableStateOf("") }
     var editCategory by remember { mutableStateOf<Category?>(null) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTab by remember { mutableIntStateOf(0) } // 0: Todas, 1: Gastos, 2: Ingresos, 3: Transferencias
+    
+    val filteredTransactions = remember(uiState.transactions, searchQuery, selectedTab) {
+        val baseList = if (searchQuery.isEmpty()) {
+            uiState.transactions
+        } else {
+            uiState.transactions.filter { transaction ->
+                transaction.description.contains(searchQuery, ignoreCase = true) ||
+                transaction.origin.contains(searchQuery, ignoreCase = true) ||
+                transaction.type.name.contains(searchQuery, ignoreCase = true)
+            }
+        }
+
+        when (selectedTab) {
+            1 -> baseList.filter { it.type == TransactionType.EXPENSE }
+            2 -> baseList.filter { it.type == TransactionType.INCOME }
+            3 -> baseList.filter { it.type == TransactionType.TRANSFER }
+            else -> baseList
+        }
+    }
 
     var showTransferDialog by remember { mutableStateOf(false) }
     var transferAmount by remember { mutableStateOf("") }
@@ -128,6 +152,12 @@ fun DashboardScreen(
                     onClick = { onNavigateToCategories() },
                     icon = { Icon(Icons.Default.Category, contentDescription = null) },
                     label = { Text("Categorías", fontSize = 10.sp, maxLines = 1) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = onNavigateToReports,
+                    icon = { Icon(Icons.Default.BarChart, contentDescription = null) },
+                    label = { Text("Reportes", fontSize = 10.sp, maxLines = 1) }
                 )
                 NavigationBarItem(
                     selected = false,
@@ -266,19 +296,93 @@ fun DashboardScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
-                    Text("Transacciones Recientes", style = MaterialTheme.typography.titleLarge)
+                    Text("Transacciones", style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Buscar por nombre, categoría o tipo...") },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(Icons.Default.Close, contentDescription = "Limpiar")
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    SecondaryScrollableTabRow(
+                        selectedTabIndex = selectedTab,
+                        edgePadding = 0.dp,
+                        containerColor = Color.Transparent,
+                        divider = {},
+                        indicator = {
+                            TabRowDefaults.SecondaryIndicator(
+                                Modifier.tabIndicatorOffset(selectedTab),
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    ) {
+                        Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
+                            Text("Todas", modifier = Modifier.padding(12.dp))
+                        }
+                        Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
+                            Text("Gastos", modifier = Modifier.padding(12.dp))
+                        }
+                        Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }) {
+                            Text("Ingresos", modifier = Modifier.padding(12.dp))
+                        }
+                        Tab(selected = selectedTab == 3, onClick = { selectedTab = 3 }) {
+                            Text("Transferencias", modifier = Modifier.padding(12.dp))
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                items(uiState.transactions) { transaction ->
+                items(filteredTransactions) { transaction ->
                     ListItem(
                         headlineContent = { Text(transaction.description) },
-                        supportingContent = { Text(transaction.origin) },
+                        supportingContent = { 
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                val icon = when(transaction.type) {
+                                    TransactionType.INCOME -> Icons.Default.ArrowUpward
+                                    TransactionType.EXPENSE -> Icons.Default.ArrowDownward
+                                    TransactionType.TRANSFER -> Icons.Default.SwapHoriz
+                                }
+                                val color = when(transaction.type) {
+                                    TransactionType.INCOME -> MaterialTheme.colorScheme.primary
+                                    TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+                                    TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
+                                }
+                                Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = color)
+                                Text(transaction.origin) 
+                            }
+                        },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
+                                val prefix = when(transaction.type) {
+                                    TransactionType.INCOME -> "+"
+                                    TransactionType.EXPENSE -> "-"
+                                    TransactionType.TRANSFER -> "⇄"
+                                }
+                                val color = when(transaction.type) {
+                                    TransactionType.INCOME -> MaterialTheme.colorScheme.primary
+                                    TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+                                    TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
+                                }
                                 Text(
-                                    text = "${if (transaction.type == TransactionType.INCOME) "+" else "-"}$${String.format("%.2f", transaction.amount)}",
-                                    color = if (transaction.type == TransactionType.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                    text = "$prefix ${String.format("%.2f", transaction.amount)}",
+                                    color = color,
                                     fontWeight = FontWeight.Bold
                                 )
                                 IconButton(onClick = {
@@ -876,11 +980,16 @@ fun DashboardScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text("MONTO", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, letterSpacing = 1.sp))
+                                    val color = when(editingTransaction!!.type) {
+                                        TransactionType.INCOME -> MaterialTheme.colorScheme.primary
+                                        TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+                                        TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
+                                    }
                                     Text(
-                                        text = if (editAmount.isEmpty()) "S/. 0.00" else "S/. $editAmount",
+                                        text = if (editAmount.isEmpty()) "0.00" else editAmount,
                                         style = MaterialTheme.typography.displaySmall,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = if (editingTransaction!!.type == TransactionType.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                        color = color
                                     )
                                 }
                             }

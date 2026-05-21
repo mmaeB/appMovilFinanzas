@@ -91,7 +91,14 @@ fun FinanceApp(financeViewModel: FinanceViewModel) {
                         popUpTo("dashboard") { inclusive = true }
                     }
                 },
-                onNavigateToProfile = { navController.navigate("profile") }
+                onNavigateToProfile = { navController.navigate("profile") },
+                onNavigateToReports = { navController.navigate("reports") }
+            )
+        }
+        composable("reports") {
+            com.upn3.proyecto_finanzas_personales.ui.reports.ReportsScreen(
+                viewModel = financeViewModel,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable("profile") {

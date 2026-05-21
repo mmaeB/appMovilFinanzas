@@ -1,4 +1,4 @@
-#Wed May 20 08:46:04 PET 2026
+#Wed May 20 11:08:56 PET 2026
 base.0=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
 base.1=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
 base.10=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\9\\classes.dex
@@ -7,6 +7,7 @@ base.12=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\interme
 base.13=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
 base.14=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes4.dex
 base.15=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes5.dex
+base.16=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\12\\classes.dex
 base.2=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\10\\classes.dex
 base.3=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\15\\classes.dex
 base.4=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\1\\classes.dex
@@ -23,6 +24,7 @@ path.12=classes2.dex
 path.13=classes3.dex
 path.14=classes4.dex
 path.15=classes5.dex
+path.16=12/classes.dex
 path.2=10/classes.dex
 path.3=15/classes.dex
 path.4=1/classes.dex
@@ -39,6 +41,7 @@ renamed.12=classes13.dex
 renamed.13=classes14.dex
 renamed.14=classes15.dex
 renamed.15=classes16.dex
+renamed.16=classes17.dex
 renamed.2=classes3.dex
 renamed.3=classes4.dex
 renamed.4=classes5.dex

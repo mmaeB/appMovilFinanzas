@@ -3,7 +3,7 @@ package com.upn3.proyecto_finanzas_personales.model
 import java.util.UUID
 
 enum class TransactionType {
-    INCOME, EXPENSE
+    INCOME, EXPENSE, TRANSFER
 }
 
 data class Transaction(

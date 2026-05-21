@@ -28,6 +28,15 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.upn3.proyecto_finanzas_personales.model.Transaction
+import com.upn3.proyecto_finanzas_personales.model.TransactionType
+import android.net.Uri
+import android.util.Base64
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 import com.upn3.proyecto_finanzas_personales.ui.auth.SharedAuthTextField
 import com.upn3.proyecto_finanzas_personales.ui.components.ThemeSelector
 import com.upn3.proyecto_finanzas_personales.viewmodel.FinanceViewModel
@@ -48,6 +57,7 @@ fun ProfileScreen(
     var profilePic by remember { mutableStateOf(user?.profilePicture ?: "") }
 
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -85,6 +95,7 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .verticalScroll(scrollState)
                 .padding(horizontal = 24.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -191,6 +202,15 @@ fun ProfileScreen(
                 showLabel = false
             )
 
+            Text(
+                "Datos y Copia de Seguridad",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            CsvDataManagement(viewModel)
+
             if (uiState.errorMessage != null) {
                 Text(
                     text = uiState.errorMessage!!,
@@ -198,6 +218,176 @@ fun ProfileScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+        }
+    }
+}
+
+/**
+ * Componente para la gestión de Importación/Exportación CSV.
+ * Permite al usuario elegir un archivo para importar o una ubicación para exportar.
+ * Incluye un campo de contraseña opcional para cifrar los datos.
+ */
+@Composable
+fun CsvDataManagement(viewModel: FinanceViewModel) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var exportPassword by remember { mutableStateOf("") }
+    var showExportPassField by remember { mutableStateOf(false) }
+
+    var importUri by remember { mutableStateOf<Uri?>(null) }
+    var showImportPassDialog by remember { mutableStateOf(false) }
+    var importPasswordInput by remember { mutableStateOf("") }
+
+    // Launcher para seleccionar ubicación de guardado (Exportar)
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let { viewModel.exportTransactionsToCsv(it, exportPassword.ifBlank { null }, context) }
+    }
+
+    // Launcher para abrir archivo (Importar)
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { selectedUri ->
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val content = context.contentResolver.openInputStream(selectedUri)?.bufferedReader()?.use { it.readText() } ?: ""
+                    
+                    // Comprobar si parece estar en Base64 (indicador de que está cifrado)
+                    val isEncrypted = try {
+                        val decoded = Base64.decode(content, Base64.DEFAULT)
+                        // Si se pudo decodificar y tiene al menos el tamaño del IV (16 bytes)
+                        decoded.size > 16
+                    } catch (e: Exception) {
+                        false
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        if (isEncrypted) {
+                            importUri = selectedUri
+                            showImportPassDialog = true
+                        } else {
+                            viewModel.importTransactionsFromCsv(selectedUri, null, context)
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        // El ViewModel manejará errores si llamamos a import con null y falla,
+                        // pero aquí estamos leyendo previamente.
+                        viewModel.importTransactionsFromCsv(selectedUri, null, context)
+                    }
+                }
+            }
+        }
+    }
+
+    if (showImportPassDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showImportPassDialog = false
+                importPasswordInput = ""
+            },
+            title = { Text("Archivo Cifrado") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Este archivo parece estar protegido. Ingresa la contraseña:")
+                    OutlinedTextField(
+                        value = importPasswordInput,
+                        onValueChange = { importPasswordInput = it },
+                        label = { Text("Contraseña") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    importUri?.let { uri ->
+                        viewModel.importTransactionsFromCsv(uri, importPasswordInput, context)
+                    }
+                    showImportPassDialog = false
+                    importPasswordInput = ""
+                }) {
+                    Text("Importar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showImportPassDialog = false
+                    importPasswordInput = ""
+                }) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("Configuración de Exportación", style = MaterialTheme.typography.titleSmall)
+            
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Checkbox(
+                    checked = showExportPassField,
+                    onCheckedChange = { showExportPassField = it }
+                )
+                Text("Cifrar exportación", style = MaterialTheme.typography.bodyMedium)
+            }
+
+            if (showExportPassField) {
+                OutlinedTextField(
+                    value = exportPassword,
+                    onValueChange = { exportPassword = it },
+                    label = { Text("Contraseña de Cifrado") },
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.VpnKey, contentDescription = null) }
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { exportLauncher.launch("finanzas_backup.csv") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.FileUpload, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Exportar")
+                }
+
+                Button(
+                    onClick = { importLauncher.launch("text/*") },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Importar")
+                }
+            }
+            
+            Text(
+                "Al importar, se detectará automáticamente si el archivo requiere contraseña.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+            )
         }
     }
 }
