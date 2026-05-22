@@ -33,20 +33,85 @@ fun ReportsScreen(
     var selectedDate by remember { mutableStateOf(Calendar.getInstance()) }
     var reportType by remember { mutableStateOf(ReportType.DAILY) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showDateRangePicker by remember { mutableStateOf(false) }
+    var showTypeMenu by remember { mutableStateOf(false) }
+    
+    var customStartDate by remember { mutableStateOf<Long?>(null) }
+    var customEndDate by remember { mutableStateOf<Long?>(null) }
 
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = selectedDate.timeInMillis
+        initialSelectedDateMillis = selectedDate.let {
+            val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            utcCal.set(it.get(Calendar.YEAR), it.get(Calendar.MONTH), it.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+            utcCal.set(Calendar.MILLISECOND, 0)
+            utcCal.timeInMillis
+        }
     )
+
+    val dateRangePickerState = rememberDateRangePickerState()
+
+    if (showDateRangePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDateRangePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val startUtc = dateRangePickerState.selectedStartDateMillis
+                    val endUtc = dateRangePickerState.selectedEndDateMillis ?: startUtc
+                    
+                    if (startUtc != null) {
+                        // Convertir UTC a Local para el inicio (00:00:00)
+                        val startCalUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = startUtc }
+                        val startCalLocal = Calendar.getInstance().apply {
+                            set(startCalUtc.get(Calendar.YEAR), startCalUtc.get(Calendar.MONTH), startCalUtc.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        
+                        // Convertir UTC a Local para el fin (23:59:59)
+                        val endCalUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = endUtc!! }
+                        val endCalLocal = Calendar.getInstance().apply {
+                            set(endCalUtc.get(Calendar.YEAR), endCalUtc.get(Calendar.MONTH), endCalUtc.get(Calendar.DAY_OF_MONTH), 23, 59, 59)
+                            set(Calendar.MILLISECOND, 999)
+                        }
+                        
+                        customStartDate = startCalLocal.timeInMillis
+                        customEndDate = endCalLocal.timeInMillis
+                    }
+                    showDateRangePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDateRangePicker = false }) { Text("Cancelar") }
+            }
+        ) {
+            DateRangePicker(
+                state = dateRangePickerState,
+                title = { Text("Seleccionar rango", modifier = Modifier.padding(16.dp)) },
+                headline = { Text("Periodo de reporte", modifier = Modifier.padding(16.dp)) },
+                showModeToggle = false,
+                modifier = Modifier.fillMaxWidth().height(500.dp)
+            )
+        }
+    }
 
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let {
-                        val cal = Calendar.getInstance()
-                        cal.timeInMillis = it
-                        selectedDate = cal
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                            timeInMillis = utcMillis
+                        }
+                        val localCal = Calendar.getInstance().apply {
+                            set(
+                                utcCal.get(Calendar.YEAR),
+                                utcCal.get(Calendar.MONTH),
+                                utcCal.get(Calendar.DAY_OF_MONTH),
+                                0, 0, 0
+                            )
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        selectedDate = localCal
                     }
                     showDatePicker = false
                 }) { Text("OK") }
@@ -76,69 +141,105 @@ fun ReportsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Report Type Selector
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ReportTypeChip(
-                    label = "Diario",
-                    selected = reportType == ReportType.DAILY,
-                    onClick = { reportType = ReportType.DAILY }
-                )
-                ReportTypeChip(
-                    label = "Semanal",
-                    selected = reportType == ReportType.WEEKLY,
-                    onClick = { reportType = ReportType.WEEKLY }
-                )
-                ReportTypeChip(
-                    label = "Mensual",
-                    selected = reportType == ReportType.MONTHLY,
-                    onClick = { reportType = ReportType.MONTHLY }
-                )
-                ReportTypeChip(
-                    label = "Anual",
-                    selected = reportType == ReportType.YEARLY,
-                    onClick = { reportType = ReportType.YEARLY }
-                )
-            }
-
             // Date Selector Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clickable { showDatePicker = true },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(
+            Box(modifier = Modifier.padding(16.dp)) {
+                Card(
                     modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .fillMaxWidth()
+                        .clickable { showTypeMenu = true },
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
-                    Column {
-                        Text(
-                            text = getReportDateRangeText(reportType, selectedDate),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Toca para cambiar fecha",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = when(reportType) {
+                                    ReportType.DAILY -> "REPORTE DIARIO"
+                                    ReportType.WEEKLY -> "REPORTE SEMANAL"
+                                    ReportType.MONTHLY -> "REPORTE MENSUAL"
+                                    ReportType.YEARLY -> "REPORTE ANUAL"
+                                    ReportType.CUSTOM -> "RANGO PERSONALIZADO"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = getReportDateRangeText(reportType, selectedDate, customStartDate, customEndDate),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Toca para cambiar periodo o fecha",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(Icons.Default.FilterList, contentDescription = null)
                     }
-                    Icon(Icons.Default.CalendarMonth, contentDescription = null)
+                }
+
+                DropdownMenu(
+                    expanded = showTypeMenu,
+                    onDismissRequest = { showTypeMenu = false },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Por Día") },
+                        leadingIcon = { Icon(Icons.Default.Today, null) },
+                        onClick = {
+                            reportType = ReportType.DAILY
+                            showTypeMenu = false
+                            showDatePicker = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Por Semana") },
+                        leadingIcon = { Icon(Icons.Default.DateRange, null) },
+                        onClick = {
+                            reportType = ReportType.WEEKLY
+                            showTypeMenu = false
+                            showDatePicker = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Por Mes") },
+                        leadingIcon = { Icon(Icons.Default.CalendarMonth, null) },
+                        onClick = {
+                            reportType = ReportType.MONTHLY
+                            showTypeMenu = false
+                            showDatePicker = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Por Año") },
+                        leadingIcon = { Icon(Icons.Default.Event, null) },
+                        onClick = {
+                            reportType = ReportType.YEARLY
+                            showTypeMenu = false
+                            showDatePicker = true
+                        }
+                    )
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("Rango Personalizado") },
+                        leadingIcon = { Icon(Icons.Default.DateRange, null) },
+                        onClick = {
+                            reportType = ReportType.CUSTOM
+                            showTypeMenu = false
+                            showDateRangePicker = true
+                        }
+                    )
                 }
             }
 
             // Summary Totals
-            val filteredTransactions = remember(uiState.transactions, reportType, selectedDate) {
-                filterTransactions(uiState.transactions, reportType, selectedDate)
+            val filteredTransactions = remember(uiState.transactions, reportType, selectedDate, customStartDate, customEndDate) {
+                filterTransactions(uiState.transactions, reportType, selectedDate, customStartDate, customEndDate)
             }
 
             val totalIncome = filteredTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
@@ -269,9 +370,9 @@ fun TransactionReportItem(transaction: Transaction, currency: String) {
     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 }
 
-enum class ReportType { DAILY, WEEKLY, MONTHLY, YEARLY }
+enum class ReportType { DAILY, WEEKLY, MONTHLY, YEARLY, CUSTOM }
 
-fun getReportDateRangeText(type: ReportType, cal: Calendar): String {
+fun getReportDateRangeText(type: ReportType, cal: Calendar, customStart: Long? = null, customEnd: Long? = null): String {
     val df = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     val monthF = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
     val yearF = SimpleDateFormat("yyyy", Locale.getDefault())
@@ -287,10 +388,23 @@ fun getReportDateRangeText(type: ReportType, cal: Calendar): String {
         }
         ReportType.MONTHLY -> monthF.format(cal.time).replaceFirstChar { it.uppercase() }
         ReportType.YEARLY -> "Año ${yearF.format(cal.time)}"
+        ReportType.CUSTOM -> {
+            if (customStart != null && customEnd != null) {
+                "${df.format(Date(customStart))} - ${df.format(Date(customEnd))}"
+            } else {
+                "Seleccionar rango"
+            }
+        }
     }
 }
 
-fun filterTransactions(transactions: List<Transaction>, type: ReportType, selectedCal: Calendar): List<Transaction> {
+fun filterTransactions(
+    transactions: List<Transaction>, 
+    type: ReportType, 
+    selectedCal: Calendar,
+    customStart: Long? = null,
+    customEnd: Long? = null
+): List<Transaction> {
     return transactions.filter {
         val transCal = Calendar.getInstance()
         transCal.timeInMillis = it.timestamp
@@ -318,6 +432,11 @@ fun filterTransactions(transactions: List<Transaction>, type: ReportType, select
             }
             ReportType.YEARLY -> {
                 transCal.get(Calendar.YEAR) == selectedCal.get(Calendar.YEAR)
+            }
+            ReportType.CUSTOM -> {
+                if (customStart != null && customEnd != null) {
+                    it.timestamp >= customStart && it.timestamp <= customEnd
+                } else true
             }
         }
     }
