@@ -238,13 +238,29 @@ fun ReportsScreen(
             }
 
             // Summary Totals
-            val filteredTransactions = remember(uiState.transactions, reportType, selectedDate, customStartDate, customEndDate) {
-                filterTransactions(uiState.transactions, reportType, selectedDate, customStartDate, customEndDate)
+            val reportData = remember(uiState.transactions, reportType, selectedDate, customStartDate, customEndDate) {
+                val (start, end) = getPeriodBounds(reportType, selectedDate, customStartDate, customEndDate)
+                val filtered = uiState.transactions.filter { it.timestamp in start..end }
+                val sorted = filtered.sortedByDescending { it.timestamp }
+                
+                var income = 0.0
+                var expense = 0.0
+                var transfer = 0.0
+                
+                filtered.forEach { 
+                    when(it.type) {
+                        TransactionType.INCOME -> income += it.amount
+                        TransactionType.EXPENSE -> expense += it.amount
+                        TransactionType.TRANSFER -> transfer += it.amount
+                    }
+                }
+                
+                Triple(sorted, Pair(income, expense), transfer)
             }
 
-            val totalIncome = filteredTransactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-            val totalExpense = filteredTransactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
-            val totalTransfer = filteredTransactions.filter { it.type == TransactionType.TRANSFER }.sumOf { it.amount }
+            val sortedTransactions = reportData.first
+            val (totalIncome, totalExpense) = reportData.second
+            val totalTransfer = reportData.third
 
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Row(
@@ -286,8 +302,10 @@ fun ReportsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
-                val sortedTransactions = filteredTransactions.sortedByDescending { it.timestamp }
-                items(sortedTransactions) { transaction ->
+                items(
+                    items = sortedTransactions,
+                    key = { it.id } // Usar ID para optimizar recomposición
+                ) { transaction ->
                     TransactionReportItem(transaction, uiState.selectedWallet?.currencyCode ?: "S/.")
                 }
                 
@@ -337,8 +355,8 @@ fun ReportSummaryCard(label: String, amount: Double, color: Color, modifier: Mod
 
 @Composable
 fun TransactionReportItem(transaction: Transaction, currency: String) {
-    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-    val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM", Locale.getDefault()) }
     
     ListItem(
         headlineContent = { Text(transaction.description) },
@@ -398,46 +416,64 @@ fun getReportDateRangeText(type: ReportType, cal: Calendar, customStart: Long? =
     }
 }
 
-fun filterTransactions(
-    transactions: List<Transaction>, 
+fun getPeriodBounds(
     type: ReportType, 
-    selectedCal: Calendar,
-    customStart: Long? = null,
-    customEnd: Long? = null
-): List<Transaction> {
-    return transactions.filter {
-        val transCal = Calendar.getInstance()
-        transCal.timeInMillis = it.timestamp
-        
-        when (type) {
-            ReportType.DAILY -> {
-                transCal.get(Calendar.YEAR) == selectedCal.get(Calendar.YEAR) &&
-                transCal.get(Calendar.DAY_OF_YEAR) == selectedCal.get(Calendar.DAY_OF_YEAR)
-            }
-            ReportType.WEEKLY -> {
-                val start = selectedCal.clone() as Calendar
-                start.set(Calendar.DAY_OF_WEEK, start.firstDayOfWeek)
-                start.set(Calendar.HOUR_OF_DAY, 0)
-                start.set(Calendar.MINUTE, 0)
-                start.set(Calendar.SECOND, 0)
-                
-                val end = start.clone() as Calendar
-                end.add(Calendar.DAY_OF_YEAR, 7)
-                
-                it.timestamp >= start.timeInMillis && it.timestamp < end.timeInMillis
-            }
-            ReportType.MONTHLY -> {
-                transCal.get(Calendar.YEAR) == selectedCal.get(Calendar.YEAR) &&
-                transCal.get(Calendar.MONTH) == selectedCal.get(Calendar.MONTH)
-            }
-            ReportType.YEARLY -> {
-                transCal.get(Calendar.YEAR) == selectedCal.get(Calendar.YEAR)
-            }
-            ReportType.CUSTOM -> {
-                if (customStart != null && customEnd != null) {
-                    it.timestamp >= customStart && it.timestamp <= customEnd
-                } else true
-            }
+    selectedCal: Calendar, 
+    customStart: Long?, 
+    customEnd: Long?
+): Pair<Long, Long> {
+    val cal = selectedCal.clone() as Calendar
+    cal.set(Calendar.MILLISECOND, 0)
+    
+    return when (type) {
+        ReportType.DAILY -> {
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            val start = cal.timeInMillis
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            Pair(start, cal.timeInMillis)
+        }
+        ReportType.WEEKLY -> {
+            cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            val start = cal.timeInMillis
+            cal.add(Calendar.DAY_OF_YEAR, 6)
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            Pair(start, cal.timeInMillis)
+        }
+        ReportType.MONTHLY -> {
+            cal.set(Calendar.DAY_OF_MONTH, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            val start = cal.timeInMillis
+            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            Pair(start, cal.timeInMillis)
+        }
+        ReportType.YEARLY -> {
+            cal.set(Calendar.DAY_OF_YEAR, 1)
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            val start = cal.timeInMillis
+            cal.set(Calendar.DAY_OF_YEAR, cal.getActualMaximum(Calendar.DAY_OF_YEAR))
+            cal.set(Calendar.HOUR_OF_DAY, 23)
+            cal.set(Calendar.MINUTE, 59)
+            cal.set(Calendar.SECOND, 59)
+            Pair(start, cal.timeInMillis)
+        }
+        ReportType.CUSTOM -> {
+            Pair(customStart ?: 0L, customEnd ?: Long.MAX_VALUE)
         }
     }
 }

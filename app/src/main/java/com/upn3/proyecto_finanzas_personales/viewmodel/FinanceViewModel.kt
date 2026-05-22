@@ -846,6 +846,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addTransaction(amount: Double, description: String, origin: String, type: TransactionType, walletId: String? = null, onSuccess: () -> Unit = {}) {
+        addTransactionWithDate(amount, description, origin, type, System.currentTimeMillis(), walletId, onSuccess)
+    }
+
+    fun addTransactionWithDate(amount: Double, description: String, origin: String, type: TransactionType, timestamp: Long, walletId: String? = null, onSuccess: () -> Unit = {}) {
         val email = uiState.value.currentUser?.email ?: return
         val targetWalletId = walletId ?: _uiState.value.selectedWallet?.id ?: "default"
         val wallet = allWallets.find { it.id == targetWalletId }
@@ -870,7 +874,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             description = description,
             origin = origin,
             type = type,
-            walletId = targetWalletId
+            walletId = targetWalletId,
+            timestamp = timestamp
         )
         
         viewModelScope.launch {
@@ -885,7 +890,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     val newBalance = when(type) {
                         TransactionType.INCOME -> wallet.balance + amount
                         TransactionType.EXPENSE -> wallet.balance - amount
-                        TransactionType.TRANSFER -> wallet.balance - amount // Asumiendo que addTransaction con TRANSFER es salida (no se suele usar así directamente pero por consistencia)
+                        TransactionType.TRANSFER -> wallet.balance - amount
                     }
                     batch.update(walletRef, "balance", newBalance)
                 }.await()

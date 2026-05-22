@@ -33,6 +33,7 @@ import com.upn3.proyecto_finanzas_personales.ui.components.NumericKeyboard
 import com.upn3.proyecto_finanzas_personales.viewmodel.FinanceViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,6 +54,8 @@ fun DashboardScreen(
     var editAmount by remember { mutableStateOf("") }
     var editDescription by remember { mutableStateOf("") }
     var editCategory by remember { mutableStateOf<Category?>(null) }
+    var editDate by remember { mutableStateOf(Calendar.getInstance()) }
+    var showEditDatePicker by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Todas, 1: Gastos, 2: Ingresos, 3: Transferencias
@@ -391,6 +394,7 @@ fun DashboardScreen(
                                     editDescription = transaction.description
                                     editCategory = uiState.categories.find { it.name == transaction.origin }
                                     showEditTransactionDialog = true
+                                    editDate = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }
                                     viewModel.clearError()
                                 }) {
                                     Icon(
@@ -944,6 +948,46 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.surface
             ) {
+                val editDatePickerState = rememberDatePickerState(
+                    initialSelectedDateMillis = editDate.let {
+                        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+                        utcCal.set(it.get(Calendar.YEAR), it.get(Calendar.MONTH), it.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+                        utcCal.set(Calendar.MILLISECOND, 0)
+                        utcCal.timeInMillis
+                    }
+                )
+
+                if (showEditDatePicker) {
+                    DatePickerDialog(
+                        onDismissRequest = { showEditDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                editDatePickerState.selectedDateMillis?.let { utcMillis ->
+                                    val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                                        timeInMillis = utcMillis
+                                    }
+                                    val localCal = Calendar.getInstance().apply {
+                                        set(
+                                            utcCal.get(Calendar.YEAR),
+                                            utcCal.get(Calendar.MONTH),
+                                            utcCal.get(Calendar.DAY_OF_MONTH),
+                                            0, 0, 0
+                                        )
+                                        set(Calendar.MILLISECOND, 0)
+                                    }
+                                    editDate = localCal
+                                }
+                                showEditDatePicker = false
+                            }) { Text("OK") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showEditDatePicker = false }) { Text("Cancelar") }
+                        }
+                    ) {
+                        DatePicker(state = editDatePickerState)
+                    }
+                }
+
                 Scaffold(
                     topBar = {
                         CenterAlignedTopAppBar(
@@ -1003,6 +1047,26 @@ fun DashboardScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
                                 textStyle = MaterialTheme.typography.bodyLarge
+                            )
+
+                            // Fecha
+                            val dateFormatter = remember { java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault()) }
+                            OutlinedTextField(
+                                value = dateFormatter.format(editDate.time),
+                                onValueChange = { },
+                                readOnly = true,
+                                label = { Text("Fecha") },
+                                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                                modifier = Modifier.fillMaxWidth().clickable { showEditDatePicker = true },
+                                enabled = false,
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                    disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                shape = RoundedCornerShape(12.dp)
                             )
 
                             // Listado de Categorías
@@ -1102,7 +1166,8 @@ fun DashboardScreen(
                                             val updated = editingTransaction!!.copy(
                                                 amount = amt,
                                                 description = editDescription,
-                                                origin = editCategory!!.name
+                                                origin = editCategory!!.name,
+                                                timestamp = editDate.timeInMillis
                                             )
                                             viewModel.updateTransaction(updated) {
                                                 showEditTransactionDialog = false

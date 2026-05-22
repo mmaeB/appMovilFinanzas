@@ -2,6 +2,7 @@ package com.upn3.proyecto_finanzas_personales.ui.transactions
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -11,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +32,8 @@ import com.upn3.proyecto_finanzas_personales.model.Category
 import com.upn3.proyecto_finanzas_personales.model.TransactionType
 import com.upn3.proyecto_finanzas_personales.ui.components.NumericKeyboard
 import com.upn3.proyecto_finanzas_personales.viewmodel.FinanceViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +47,51 @@ fun TransactionScreen(
     var description by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<Category?>(null) }
     var type by remember { mutableStateOf(TransactionType.EXPENSE) }
+    var selectedDate by remember { mutableStateOf(Calendar.getInstance()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    
     val focusManager = LocalFocusManager.current
+    val dateFormatter = remember { SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()) }
+
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDate.let {
+            val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+            utcCal.set(it.get(Calendar.YEAR), it.get(Calendar.MONTH), it.get(Calendar.DAY_OF_MONTH), 0, 0, 0)
+            utcCal.set(Calendar.MILLISECOND, 0)
+            utcCal.timeInMillis
+        }
+    )
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { utcMillis ->
+                        val utcCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                            timeInMillis = utcMillis
+                        }
+                        val localCal = Calendar.getInstance().apply {
+                            set(
+                                utcCal.get(Calendar.YEAR),
+                                utcCal.get(Calendar.MONTH),
+                                utcCal.get(Calendar.DAY_OF_MONTH),
+                                0, 0, 0
+                            )
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        selectedDate = localCal
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancelar") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     // Filtrar categorías por tipo (Ingreso o Gasto)
     val filteredCategories = uiState.categories.filter { it.type == type }
@@ -156,6 +204,25 @@ fun TransactionScreen(
                     textStyle = MaterialTheme.typography.bodyLarge
                 )
 
+                // Fecha de la transacción
+                OutlinedTextField(
+                    value = dateFormatter.format(selectedDate.time),
+                    onValueChange = { },
+                    readOnly = true,
+                    label = { Text("Fecha") },
+                    leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
+                    enabled = false, // Hacemos que solo el click sea interactivo
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
                 // Listado de Categorías Horizontal
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Categoría", style = MaterialTheme.typography.labelLarge)
@@ -253,7 +320,7 @@ fun TransactionScreen(
                             description.isBlank() -> viewModel.setError("La descripción es requerida")
                             selectedCategory == null -> viewModel.setError("Debe seleccionar una categoría")
                             else -> {
-                                viewModel.addTransaction(amt, description, selectedCategory!!.name, type) {
+                                viewModel.addTransactionWithDate(amt, description, selectedCategory!!.name, type, selectedDate.timeInMillis) {
                                     onNavigateBack()
                                 }
                             }
