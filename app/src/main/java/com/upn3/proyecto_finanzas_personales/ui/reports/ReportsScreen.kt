@@ -240,7 +240,12 @@ fun ReportsScreen(
             // Summary Totals
             val reportData = remember(uiState.transactions, reportType, selectedDate, customStartDate, customEndDate) {
                 val (start, end) = getPeriodBounds(reportType, selectedDate, customStartDate, customEndDate)
-                val filtered = uiState.transactions.filter { it.timestamp in start..end }
+                // Incluir transacciones normales y ajustes de saldo, pero ignorar otros eventos de sistema
+                val filtered = uiState.transactions.filter { 
+                    it.timestamp in start..end && 
+                    (it.origin != "Sistema" || it.description == "Ajuste de Saldo") &&
+                    it.origin != "Ajuste de Moneda"
+                }
                 val sorted = filtered.sortedByDescending { it.timestamp }
                 
                 var income = 0.0
@@ -261,6 +266,7 @@ fun ReportsScreen(
             val sortedTransactions = reportData.first
             val (totalIncome, totalExpense) = reportData.second
             val totalTransfer = reportData.third
+            val currentSymbol = viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN")
 
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                 Row(
@@ -271,12 +277,14 @@ fun ReportsScreen(
                         label = "Ingresos",
                         amount = totalIncome,
                         color = MaterialTheme.colorScheme.primary,
+                        symbol = currentSymbol,
                         modifier = Modifier.weight(1f)
                     )
                     ReportSummaryCard(
                         label = "Gastos",
                         amount = totalExpense,
                         color = MaterialTheme.colorScheme.error,
+                        symbol = currentSymbol,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -285,6 +293,7 @@ fun ReportsScreen(
                         label = "Transferencias",
                         amount = totalTransfer,
                         color = MaterialTheme.colorScheme.secondary,
+                        symbol = currentSymbol,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(Modifier.height(8.dp))
@@ -306,7 +315,7 @@ fun ReportsScreen(
                     items = sortedTransactions,
                     key = { it.id } // Usar ID para optimizar recomposición
                 ) { transaction ->
-                    TransactionReportItem(transaction, uiState.selectedWallet?.currencyCode ?: "S/.")
+                    TransactionReportItem(transaction, viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN"))
                 }
                 
                 if (sortedTransactions.isEmpty()) {
@@ -336,7 +345,7 @@ fun ReportTypeChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-fun ReportSummaryCard(label: String, amount: Double, color: Color, modifier: Modifier = Modifier) {
+fun ReportSummaryCard(label: String, amount: Double, color: Color, symbol: String, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f))
@@ -344,7 +353,7 @@ fun ReportSummaryCard(label: String, amount: Double, color: Color, modifier: Mod
         Column(modifier = Modifier.padding(12.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = color)
             Text(
-                String.format("%.2f", amount),
+                "$symbol ${String.format("%.2f", amount)}",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = color
@@ -368,10 +377,12 @@ fun TransactionReportItem(transaction: Transaction, currency: String) {
             }
         },
         trailingContent = {
-            val prefix = when(transaction.type) {
-                TransactionType.INCOME -> "+"
-                TransactionType.EXPENSE -> "-"
-                TransactionType.TRANSFER -> "⇄"
+            val prefix = when {
+                transaction.origin == "Sistema" || transaction.description.contains("Ajuste", ignoreCase = true) -> ""
+                transaction.type == TransactionType.INCOME -> "+"
+                transaction.type == TransactionType.EXPENSE -> "-"
+                transaction.type == TransactionType.TRANSFER -> "⇄"
+                else -> ""
             }
             val color = when(transaction.type) {
                 TransactionType.INCOME -> MaterialTheme.colorScheme.primary

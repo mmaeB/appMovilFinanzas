@@ -178,9 +178,10 @@ fun TransactionScreen(
                         modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("MONTO (${uiState.selectedWallet?.currencyCode ?: "S/."})", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, letterSpacing = 1.sp))
+                        val symbol = viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN")
+                        Text("MONTO ($symbol)", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, letterSpacing = 1.sp))
                         Text(
-                            text = if (amount.isEmpty()) "${uiState.selectedWallet?.currencyCode ?: "S/."} 0.00" else "${uiState.selectedWallet?.currencyCode ?: "S/."} $amount",
+                            text = if (amount.isEmpty()) "$symbol 0.00" else "$symbol $amount",
                             style = MaterialTheme.typography.displaySmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = if (type == TransactionType.INCOME) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error

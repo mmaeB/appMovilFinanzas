@@ -228,7 +228,7 @@ fun DashboardScreen(
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text(
-                                        "${wallet.currencyCode} ${String.format("%.2f", wallet.balance)}",
+                                        "${viewModel.getCurrencySymbol(wallet.currencyCode)} ${String.format("%.2f", wallet.balance)}",
                                         style = MaterialTheme.typography.headlineSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
@@ -275,7 +275,7 @@ fun DashboardScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "${uiState.selectedWallet?.currencyCode ?: "S/."} ${String.format("%.2f", uiState.balance)}",
+                                    text = "${viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN")} ${String.format("%.2f", uiState.balance)}",
                                     style = MaterialTheme.typography.displayMedium,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.primary
@@ -294,7 +294,7 @@ fun DashboardScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
-                    StatisticsSection(uiState.transactions)
+                    StatisticsSection(uiState.transactions, viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN"), uiState.selectedWallet?.id)
                 }
 
                 item {
@@ -373,10 +373,12 @@ fun DashboardScreen(
                         },
                         trailingContent = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                val prefix = when(transaction.type) {
-                                    TransactionType.INCOME -> "+"
-                                    TransactionType.EXPENSE -> "-"
-                                    TransactionType.TRANSFER -> "⇄"
+                                val prefix = when {
+                                    transaction.origin == "Sistema" || transaction.description.contains("Ajuste", ignoreCase = true) -> ""
+                                    transaction.type == TransactionType.INCOME -> "+"
+                                    transaction.type == TransactionType.EXPENSE -> "-"
+                                    transaction.type == TransactionType.TRANSFER -> "⇄"
+                                    else -> ""
                                 }
                                 val color = when(transaction.type) {
                                     TransactionType.INCOME -> MaterialTheme.colorScheme.primary
@@ -463,7 +465,7 @@ fun DashboardScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                "${uiState.preferredCurrency} ${String.format("%.2f", uiState.globalBalance)}",
+                                "${viewModel.getCurrencySymbol(uiState.preferredCurrency)} ${String.format("%.2f", uiState.globalBalance)}",
                                 style = MaterialTheme.typography.displaySmall,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -509,7 +511,7 @@ fun DashboardScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(wallet.name, style = MaterialTheme.typography.bodySmall)
-                            Text("${wallet.currencyCode} ${String.format("%.2f", wallet.balance)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            Text("${viewModel.getCurrencySymbol(wallet.currencyCode)} ${String.format("%.2f", wallet.balance)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -666,7 +668,7 @@ fun DashboardScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        "Saldo estimado: ${selectedCurrency.first} ${String.format("%.2f", editingWallet!!.balance * uiState.exchangeRatePreview!!)}",
+                                        "Saldo estimado: ${viewModel.getCurrencySymbol(selectedCurrency.first)} ${String.format("%.2f", editingWallet!!.balance * uiState.exchangeRatePreview!!)}",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.primary
                                     )
@@ -761,7 +763,7 @@ fun DashboardScreen(
                                 }
                             }
                         },
-                        label = { Text("Monto a transferir (${fromWallet?.currencyCode})") },
+                        label = { Text("Monto a transferir (${viewModel.getCurrencySymbol(fromWallet?.currencyCode ?: "PEN")})") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -790,7 +792,7 @@ fun DashboardScreen(
                                         )
                                         val amt = transferAmount.toDoubleOrNull() ?: 0.0
                                         Text(
-                                            "Recibirán: ${selectedToWallet!!.currencyCode} ${String.format("%.2f", amt * rate)}",
+                                            "Recibirán: ${viewModel.getCurrencySymbol(selectedToWallet!!.currencyCode)} ${String.format("%.2f", amt * rate)}",
                                             style = MaterialTheme.typography.bodyMedium,
                                             color = MaterialTheme.colorScheme.primary
                                         )
@@ -868,7 +870,7 @@ fun DashboardScreen(
                                 }
                             }
                         },
-                        label = { Text("Nuevo Saldo (S/.)") },
+                        label = { Text("Nuevo Saldo (${viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN")})") },
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal
@@ -1204,7 +1206,7 @@ private val ChartColors = listOf(
 )
 
 @Composable
-fun StatisticsSection(transactions: List<Transaction>) {
+fun StatisticsSection(transactions: List<Transaction>, currencySymbol: String, selectedWalletId: String?) {
     var viewMode by remember { mutableStateOf(0) } // 0: Gastos, 1: Ingresos, 2: General
     var chartType by remember { mutableStateOf(ChartType.PIE) }
     var selectedItem by remember { mutableStateOf<ChartData?>(null) }
@@ -1212,10 +1214,19 @@ fun StatisticsSection(transactions: List<Transaction>) {
     val incomeColor = MaterialTheme.colorScheme.primary
     val expenseColor = MaterialTheme.colorScheme.error
 
-    val chartData = remember(transactions, viewMode, incomeColor, expenseColor) {
+    val chartData = remember(transactions, viewMode, incomeColor, expenseColor, currencySymbol, selectedWalletId) {
+        // Filtrar transacciones de la billetera actual.
+        // Incluimos "Ajuste de Saldo" para que el gráfico cuadre con el dinero real, 
+        // pero excluimos avisos técnicos como "Ajuste de Moneda" que no mueven dinero real.
+        val filteredByWallet = transactions.filter { 
+            it.walletId == selectedWalletId && 
+            (it.origin != "Sistema" || it.description == "Ajuste de Saldo") &&
+            it.origin != "Ajuste de Moneda"
+        }
+
         when (viewMode) {
             0 -> { // Gastos
-                transactions.filter { it.type == TransactionType.EXPENSE }
+                filteredByWallet.filter { it.type == TransactionType.EXPENSE }
                     .groupBy { it.origin.ifBlank { "Sin Categoría" } }
                     .mapValues { it.value.sumOf { t -> t.amount }.toFloat() }
                     .toList()
@@ -1225,7 +1236,7 @@ fun StatisticsSection(transactions: List<Transaction>) {
                     }
             }
             1 -> { // Ingresos
-                transactions.filter { it.type == TransactionType.INCOME }
+                filteredByWallet.filter { it.type == TransactionType.INCOME }
                     .groupBy { it.origin.ifBlank { "Sin Categoría" } }
                     .mapValues { it.value.sumOf { t -> t.amount }.toFloat() }
                     .toList()
@@ -1235,8 +1246,8 @@ fun StatisticsSection(transactions: List<Transaction>) {
                     }
             }
             else -> { // General (Ambos)
-                val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }.toFloat()
-                val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }.toFloat()
+                val totalIncome = filteredByWallet.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }.toFloat()
+                val totalExpense = filteredByWallet.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }.toFloat()
                 listOf(
                     ChartData("Ingresos", totalIncome, incomeColor),
                     ChartData("Gastos", totalExpense, expenseColor)
@@ -1244,6 +1255,8 @@ fun StatisticsSection(transactions: List<Transaction>) {
             }
         }
     }
+
+    val totalValue = chartData.sumOf { it.value.toDouble() }.toFloat()
 
     // Reset selection when data changes
     LaunchedEffect(viewMode) { selectedItem = null }
@@ -1339,10 +1352,15 @@ fun StatisticsSection(transactions: List<Transaction>) {
                             BarChart(chartData, selectedItem, { selectedItem = it }, modifier = Modifier.fillMaxSize().padding(8.dp))
                         }
                         
-                        if (selectedItem != null && chartType == ChartType.PIE) {
+                        if (chartType == ChartType.PIE) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    "S/.${String.format("%.0f", selectedItem!!.value)}",
+                                    text = if (selectedItem != null) selectedItem!!.label else "Total",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                                Text(
+                                    text = "$currencySymbol ${String.format("%.2f", if (selectedItem != null) selectedItem!!.value else totalValue)}",
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1382,7 +1400,7 @@ fun StatisticsSection(transactions: List<Transaction>) {
                                     )
                                     if (selectedItem == item) {
                                         Text(
-                                            "S/.${String.format("%.2f", item.value)}",
+                                            "$currencySymbol ${String.format("%.2f", item.value)}",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                             color = MaterialTheme.colorScheme.primary
                                         )

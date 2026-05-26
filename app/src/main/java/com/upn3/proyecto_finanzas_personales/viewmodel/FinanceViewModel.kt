@@ -153,6 +153,17 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         
         viewModelScope.launch {
             try {
+                _uiState.update { it.copy(isLoading = true) }
+                
+                // Intentar actualizar en Firebase Auth si cambió la contraseña o el correo
+                if (newPass.isNotBlank() && newPass != currentUser.password) {
+                    auth.currentUser?.updatePassword(newPass)?.await()
+                }
+                
+                if (newEmail != currentUser.email) {
+                    auth.currentUser?.updateEmail(newEmail)?.await()
+                }
+
                 val updatedUser = currentUser.copy(
                     name = newName,
                     lastname = newLastName,
@@ -173,10 +184,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     db.collection("users").document(currentUser.email).set(updatedUser).await()
                 }
 
-                _uiState.update { it.copy(currentUser = updatedUser, errorMessage = null) }
+                _uiState.update { it.copy(currentUser = updatedUser, errorMessage = null, isLoading = false) }
                 onSuccess()
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Error al actualizar perfil: ${e.message}") }
+                _uiState.update { it.copy(errorMessage = "Error al actualizar perfil: ${e.message}", isLoading = false) }
             }
         }
     }
@@ -316,15 +327,17 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 
                 if (transactions.isEmpty()) throw Exception("No se encontraron transacciones válidas")
 
-                // Subir a Firestore en un lote (batch) para mayor eficiencia
+                // Subir a Firestore en lotes (batch) para mayor eficiencia
                 val userEmail = uiState.value.currentUser?.email ?: return@launch
-                val batch = db.batch()
-                transactions.forEach { transaction ->
-                    val docRef = db.collection("users").document(userEmail)
-                        .collection("transactions").document(transaction.id)
-                    batch.set(docRef, transaction)
+                transactions.chunked(500).forEach { chunk ->
+                    val batch = db.batch()
+                    chunk.forEach { transaction ->
+                        val docRef = db.collection("users").document(userEmail)
+                            .collection("transactions").document(transaction.id)
+                        batch.set(docRef, transaction)
+                    }
+                    batch.commit().await()
                 }
-                batch.commit().await()
                 
                 // Actualizar la UI local
                 loadTransactions()
@@ -460,6 +473,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                             is Number -> rateValue.toDouble()
                             else -> 1.0
                         }
+                        // La tasa obtenida de la API suele ser 1 moneda_base = X target_currency.
+                        // Si la API devuelve tasas basadas en USD y target es USD, rates["PEN"] es PEN/USD.
+                        // Sin embargo, si usamos currencyService.getCurrencyRate(targetCurrency),
+                        // lo más probable es que devuelva tasas donde 1 targetCurrency = X otherCurrency.
+                        // Por lo tanto, para convertir a targetCurrency: wallet.balance / rateToOther.
                         total += if (rateToTarget != 0.0) wallet.balance / rateToTarget else wallet.balance
                     }
                 }
@@ -525,16 +543,72 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateWallet(wallet: Wallet) {
         val email = uiState.value.currentUser?.email ?: return
+        val oldWallet = allWallets.find { it.id == wallet.id }
+        
+        // Si el saldo llega en 0 pero la billetera original tenía dinero, 
+        // y no hubo una conversión explícita exitosa, evitamos el reseteo.
+        val finalBalance = if (wallet.balance == 0.0 && (oldWallet?.balance ?: 0.0) > 0.0 && uiState.value.exchangeRatePreview == null) {
+            oldWallet?.balance ?: 0.0
+        } else {
+            wallet.balance
+        }
+
+        val walletToSave = wallet.copy(balance = finalBalance)
+
         viewModelScope.launch {
             try {
                 db.collection("users").document(email)
-                    .collection("wallets").document(wallet.id)
-                    .set(wallet).await()
+                    .collection("wallets").document(walletToSave.id)
+                    .set(walletToSave).await()
                 
-                val index = allWallets.indexOfFirst { it.id == wallet.id }
+                val index = allWallets.indexOfFirst { it.id == walletToSave.id }
                 if (index != -1) {
-                    allWallets[index] = wallet
+                    allWallets[index] = walletToSave
                 }
+
+                // Si la moneda cambió, convertir las transacciones existentes al nuevo tipo de cambio
+                if (oldWallet != null && oldWallet.currencyCode != walletToSave.currencyCode) {
+                    val rate = if (oldWallet.balance != 0.0) walletToSave.balance / oldWallet.balance else 1.0
+                    
+                    val transactionsRef = db.collection("users").document(email).collection("transactions")
+                    val snapshot = transactionsRef.whereEqualTo("walletId", walletToSave.id).get().await()
+                    
+                    if (!snapshot.isEmpty) {
+                        db.runBatch { batch ->
+                            snapshot.documents.forEach { doc ->
+                                val oldAmt = doc.getDouble("amount") ?: 0.0
+                                val origin = doc.getString("origin") ?: ""
+                                
+                                // No convertir transacciones informativas de sistema (monto 0)
+                                if (origin == "Ajuste de Moneda" && oldAmt == 0.0) return@forEach
+                                
+                                batch.update(doc.reference, "amount", oldAmt * rate)
+                            }
+                        }.await()
+                        
+                        // Actualizar lista local
+                        val updatedLocal = allTransactions.map { 
+                            if (it.walletId == walletToSave.id && !(it.origin == "Ajuste de Moneda" && it.amount == 0.0)) {
+                                it.copy(amount = it.amount * rate)
+                            } else it
+                        }
+                        allTransactions.clear()
+                        allTransactions.addAll(updatedLocal)
+                    }
+
+                    // Registrar el evento informativo de cambio de moneda (monto 0 para no duplicar balance)
+                    val event = Transaction(
+                        amount = 0.0,
+                        description = "Ajuste de Saldo (Cambio de Moneda: ${oldWallet.currencyCode} -> ${walletToSave.currencyCode})",
+                        origin = "Ajuste de Moneda",
+                        type = TransactionType.INCOME,
+                        walletId = walletToSave.id,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    db.collection("users").document(email).collection("transactions").document(event.id).set(event).await()
+                    allTransactions.add(0, event)
+                }
+
                 updateState()
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = "Error al actualizar billetera") }
@@ -544,19 +618,31 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     fun deleteWallet(walletId: String) {
         val email = uiState.value.currentUser?.email ?: return
-        if (allWallets.size <= 1) {
-            _uiState.update { it.copy(errorMessage = "No puedes eliminar tu única billetera") }
-            return
-        }
         viewModelScope.launch {
             try {
+                // Borrar la billetera de Firestore
                 db.collection("users").document(email)
                     .collection("wallets").document(walletId)
                     .delete().await()
                 
+                // Borrar las transacciones asociadas a esta billetera
+                val transactionsQuery = db.collection("users").document(email)
+                    .collection("transactions").whereEqualTo("walletId", walletId).get().await()
+                
+                if (!transactionsQuery.isEmpty) {
+                    db.runBatch { batch ->
+                        transactionsQuery.documents.forEach { doc ->
+                            batch.delete(doc.reference)
+                        }
+                    }.await()
+                }
+                
+                // Actualizar listas locales
                 allWallets.removeAll { it.id == walletId }
+                allTransactions.removeAll { it.walletId == walletId }
+                
                 if (_uiState.value.selectedWallet?.id == walletId) {
-                    _uiState.update { it.copy(selectedWallet = allWallets.first()) }
+                    _uiState.update { it.copy(selectedWallet = allWallets.firstOrNull()) }
                 }
                 updateState()
             } catch (e: Exception) {
@@ -705,7 +791,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         val oldTransaction = allTransactions.find { it.id == transaction.id }
         val wallet = allWallets.find { it.id == transaction.walletId }
         
-        if (oldTransaction != null && wallet != null) {
+        // Determinar si esta transacción debe afectar el balance
+        val isAdjustment = transaction.origin == "Sistema"
+        
+        if (oldTransaction != null && wallet != null && !isAdjustment) {
             val balanceWithoutOld = wallet.balance - when(oldTransaction.type) {
                 TransactionType.INCOME -> oldTransaction.amount
                 TransactionType.EXPENSE, TransactionType.TRANSFER -> -oldTransaction.amount
@@ -728,7 +817,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         .collection("transactions").document(transaction.id)
                     batch.set(transRef, transaction)
                     
-                    if (oldTransaction != null && wallet != null) {
+                    if (oldTransaction != null && wallet != null && !isAdjustment) {
                         val oldImpact = when(oldTransaction.type) {
                             TransactionType.INCOME -> oldTransaction.amount
                             TransactionType.EXPENSE, TransactionType.TRANSFER -> -oldTransaction.amount
@@ -752,7 +841,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     allTransactions[index] = transaction
                 }
                 
-                if (oldTransaction != null && wallet != null) {
+                if (oldTransaction != null && wallet != null && !isAdjustment) {
                     val oldImpact = when(oldTransaction.type) {
                         TransactionType.INCOME -> oldTransaction.amount
                         TransactionType.EXPENSE, TransactionType.TRANSFER -> -oldTransaction.amount
@@ -797,17 +886,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         
         val transactionToDelete = allTransactions.find { it.id == id }
         val wallet = allWallets.find { it.id == transactionToDelete?.walletId }
-        
-        if (transactionToDelete != null && wallet != null) {
-            val impact = when(transactionToDelete.type) {
-                TransactionType.INCOME -> -transactionToDelete.amount
-                TransactionType.EXPENSE, TransactionType.TRANSFER -> transactionToDelete.amount
-            }
-            if (wallet.balance + impact < 0) {
-                _uiState.update { it.copy(errorMessage = "No se puede eliminar: el saldo de la billetera ${wallet.name} quedaría en negativo.") }
-                return
-            }
-        }
+        val isAdjustment = transactionToDelete?.origin == "Sistema"
 
         viewModelScope.launch {
             try {
@@ -816,7 +895,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                         .collection("transactions").document(id)
                     batch.delete(transRef)
                     
-                    if (transactionToDelete != null && wallet != null) {
+                    if (transactionToDelete != null && wallet != null && !isAdjustment) {
                         val impact = when(transactionToDelete.type) {
                             TransactionType.INCOME -> -transactionToDelete.amount
                             TransactionType.EXPENSE, TransactionType.TRANSFER -> transactionToDelete.amount
@@ -828,7 +907,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 }.await()
                 
                 allTransactions.removeAll { it.id == id }
-                if (transactionToDelete != null && wallet != null) {
+                if (transactionToDelete != null && wallet != null && !isAdjustment) {
                     val impact = when(transactionToDelete.type) {
                         TransactionType.INCOME -> -transactionToDelete.amount
                         TransactionType.EXPENSE, TransactionType.TRANSFER -> transactionToDelete.amount
@@ -1022,7 +1101,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 if (initialBalance > 0) {
                     val transaction = Transaction(
                         amount = initialBalance,
-                        description = "Reinicio de Saldo",
+                        description = "Ajuste de Saldo",
                         origin = "Sistema",
                         type = TransactionType.INCOME
                     )
@@ -1036,21 +1115,36 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun getCurrencySymbol(currencyCode: String): String {
+        return when (currencyCode) {
+            "USD" -> "$"
+            "EUR" -> "€"
+            "GBP" -> "£"
+            "JPY" -> "¥"
+            "MXN" -> "Mex$"
+            "CLP" -> "CLP$"
+            "BRL" -> "R$"
+            else -> "S/." // Default for PEN
+        }
+    }
+
     private fun updateState() {
-        val selectedWallet = _uiState.value.selectedWallet
-        val filteredTransactions = if (selectedWallet != null) {
-            allTransactions.filter { it.walletId == selectedWallet.id }
+        val currentSelectedWalletId = _uiState.value.selectedWallet?.id
+        val updatedSelectedWallet = allWallets.find { it.id == currentSelectedWalletId } ?: allWallets.firstOrNull()
+        
+        val filteredTransactions = if (updatedSelectedWallet != null) {
+            allTransactions.filter { it.walletId == updatedSelectedWallet.id }
         } else {
             allTransactions
         }
         
-        val balance = selectedWallet?.balance ?: allWallets.sumOf { it.balance }
+        val balance = updatedSelectedWallet?.balance ?: allWallets.sumOf { it.balance }
 
         _uiState.update { it.copy(
-            transactions = filteredTransactions,
+            transactions = filteredTransactions.sortedByDescending { t -> t.timestamp },
             categories = allCategories.toList(),
             wallets = allWallets.toList(),
-            selectedWallet = allWallets.find { w -> w.id == selectedWallet?.id } ?: allWallets.firstOrNull(),
+            selectedWallet = updatedSelectedWallet,
             balance = balance
         ) }
         calculateGlobalBalance()

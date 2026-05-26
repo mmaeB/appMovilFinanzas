@@ -82,10 +82,15 @@ fun ProfileScreen(
                 actions = {
                     TextButton(onClick = {
                         viewModel.updateUser(name, lastname, email, password, profilePic) {
+                            // Feedback visual opcional antes de volver
                             onNavigateBack()
                         }
                     }) {
-                        Text("GUARDAR", fontWeight = FontWeight.Bold)
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Text("GUARDAR", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             )

@@ -1,4 +1,4 @@
-#Fri May 22 16:53:22 PET 2026
+#Mon May 25 16:42:44 PET 2026
 base.0=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
 base.1=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
 base.10=C\:\\Users\\imano\\Downloads\\appMovilFinanzas-main\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\9\\classes.dex
