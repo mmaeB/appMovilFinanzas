@@ -48,6 +48,9 @@ data class FinanceState(
     val isExchangeLoading: Boolean = false,
     val exchangeRatePreview: Double? = null,
     val globalBalance: Double = 0.0,
+    val chartIncome: Double = 0.0,
+    val chartExpense: Double = 0.0,
+    val convertedTransactions: List<Transaction> = emptyList(),
     val preferredCurrency: String = "PEN",
     val convertedBalance: Double? = null,
     val lastRatesUpdate: Long = 0L
@@ -194,6 +197,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             }
         }
     }
+
+
 
     fun updateUser(newName: String, newLastName: String, newEmail: String, newPass: String, newProfilePic: String, onSuccess: () -> Unit) {
         val currentUser = uiState.value.currentUser ?: return
@@ -535,6 +540,80 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun calculateChartTotals() {
+        val selectedWallet = _uiState.value.selectedWallet ?: return
+        val targetCurrency = selectedWallet.currencyCode
+
+        viewModelScope.launch {
+            try {
+
+                var rates: Map<String, Double> = emptyMap()
+
+                try {
+                    val response = withTimeout(5000) {
+                        currencyService.getCurrencyRate(targetCurrency)
+                    }
+
+                    rates = response.rates ?: emptyMap()
+
+                } catch (_: Exception) {
+
+                    val cachedJson =
+                        userPreferences.cachedRates.first()
+
+                    if (cachedJson != null) {
+                        val type =
+                            object : com.google.gson.reflect.TypeToken<Map<String, Double>>() {}.type
+
+                        rates = gson.fromJson(cachedJson, type)
+                    }
+                }
+
+                var income = 0.0
+                var expense = 0.0
+
+                val convertedTransactions =
+                    allTransactions
+                        .filter { it.walletId == selectedWallet.id }
+                        .map { tx ->
+
+                            val convertedAmount =
+                                if (tx.currencyCode == targetCurrency) {
+                                    tx.amount
+                                } else {
+                                    val rate = rates[tx.currencyCode] ?: 1.0
+                                    tx.amount / rate
+                                }
+
+                            tx.copy(
+                                amount = convertedAmount,
+                                currencyCode = targetCurrency
+                            )
+                        }
+
+                convertedTransactions.forEach { tx ->
+
+                    when (tx.type) {
+                        TransactionType.INCOME -> income += tx.amount
+                        TransactionType.EXPENSE -> expense += tx.amount
+                        TransactionType.TRANSFER -> {}
+                    }
+                }
+
+
+                _uiState.update {
+                    it.copy(
+                        chartIncome = income,
+                        chartExpense = expense,
+                        convertedTransactions = convertedTransactions
+                    )
+                }
+
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     fun loadWallets() {
         val email = uiState.value.currentUser?.email ?: return
         viewModelScope.launch {
@@ -590,8 +669,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateWallet(wallet: Wallet) {
         val email = uiState.value.currentUser?.email ?: return
-        val oldWallet = allWallets.find { it.id == wallet.id }
-        
+        val oldWallet = allWallets.find { it.id == wallet.id } ?: return
+
+
         // Si el saldo llega en 0 pero la billetera original tenía dinero, 
         // y no hubo una conversión explícita exitosa, evitamos el reseteo.
         val finalBalance = if (wallet.balance == 0.0 && (oldWallet?.balance ?: 0.0) > 0.0 && uiState.value.exchangeRatePreview == null) {
@@ -601,7 +681,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
 
         val walletToSave = wallet.copy(balance = finalBalance)
-
         viewModelScope.launch {
             try {
                 db.collection("users").document(email)
@@ -613,49 +692,34 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     allWallets[index] = walletToSave
                 }
 
-                // Si la moneda cambió, convertir las transacciones existentes al nuevo tipo de cambio
-                if (oldWallet != null && oldWallet.currencyCode != walletToSave.currencyCode) {
-                    val rate = if (oldWallet.balance != 0.0) walletToSave.balance / oldWallet.balance else 1.0
-                    
-                    val transactionsRef = db.collection("users").document(email).collection("transactions")
-                    val snapshot = transactionsRef.whereEqualTo("walletId", walletToSave.id).get().await()
-                    
-                    if (!snapshot.isEmpty) {
-                        db.runBatch { batch ->
-                            snapshot.documents.forEach { doc ->
-                                val oldAmt = doc.getDouble("amount") ?: 0.0
-                                val origin = doc.getString("origin") ?: ""
-                                
-                                // No convertir transacciones informativas de sistema (monto 0)
-                                if (origin == "Ajuste de Moneda" && oldAmt == 0.0) return@forEach
-                                
-                                batch.update(doc.reference, "amount", oldAmt * rate)
-                            }
-                        }.await()
-                        
-                        // Actualizar lista local
-                        val updatedLocal = allTransactions.map { 
-                            if (it.walletId == walletToSave.id && !(it.origin == "Ajuste de Moneda" && it.amount == 0.0)) {
-                                it.copy(amount = it.amount * rate)
-                            } else it
-                        }
-                        allTransactions.clear()
-                        allTransactions.addAll(updatedLocal)
-                    }
 
-                    // Registrar el evento informativo de cambio de moneda (monto 0 para no duplicar balance)
+                if (oldWallet.currencyCode != walletToSave.currencyCode) {
+
+                    val oldSymbol = getCurrencySymbol(oldWallet.currencyCode)
+                    val newSymbol = getCurrencySymbol(walletToSave.currencyCode)
+
+                    val description =
+                        "Conversión de saldo ${oldSymbol}${"%.2f".format(oldWallet.balance)} → ${newSymbol}${"%.2f".format(walletToSave.balance)}"
+
                     val event = Transaction(
                         amount = 0.0,
-                        description = "Ajuste de Saldo (Cambio de Moneda: ${oldWallet.currencyCode} -> ${walletToSave.currencyCode})",
+                        description = description,
                         origin = "Ajuste de Moneda",
                         type = TransactionType.INCOME,
                         walletId = walletToSave.id,
+                        currencyCode = walletToSave.currencyCode,
                         timestamp = System.currentTimeMillis()
                     )
-                    db.collection("users").document(email).collection("transactions").document(event.id).set(event).await()
+
+                    db.collection("users")
+                        .document(email)
+                        .collection("transactions")
+                        .document(event.id)
+                        .set(event)
+                        .await()
+
                     allTransactions.add(0, event)
                 }
-
                 updateState()
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = "Error al actualizar billetera") }
@@ -997,13 +1061,14 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
         val transaction = Transaction(
             amount = amount,
+            currencyCode = wallet.currencyCode,
             description = description,
             origin = origin,
             type = type,
             walletId = targetWalletId,
             timestamp = timestamp
         )
-        
+
         viewModelScope.launch {
             try {
                 db.runBatch { batch ->
@@ -1081,6 +1146,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
                 val expenseTrans = Transaction(
                     amount = amount,
+                    currencyCode = fromWallet.currencyCode,
                     description = "Transferencia a ${toWallet.name}",
                     origin = "Transferencia",
                     type = TransactionType.TRANSFER,
@@ -1089,6 +1155,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
                 val incomeTrans = Transaction(
                     amount = convertedAmount,
+                    currencyCode = toWallet.currencyCode,
                     description = "Transferencia desde ${fromWallet.name}",
                     origin = "Transferencia",
                     type = TransactionType.TRANSFER,
@@ -1195,5 +1262,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             balance = balance
         ) }
         calculateGlobalBalance()
+        calculateChartTotals()
     }
 }

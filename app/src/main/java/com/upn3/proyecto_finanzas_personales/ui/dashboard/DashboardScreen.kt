@@ -294,7 +294,16 @@ fun DashboardScreen(
 
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
-                    StatisticsSection(uiState.transactions, viewModel.getCurrencySymbol(uiState.selectedWallet?.currencyCode ?: "PEN"), uiState.selectedWallet?.id)
+                    StatisticsSection(
+                        transactions = uiState.convertedTransactions,
+                        currencySymbol = viewModel.getCurrencySymbol(
+                            uiState.selectedWallet?.currencyCode ?: "PEN"
+                        ),
+                        selectedWalletId = uiState.selectedWallet?.id,
+                        getCurrencySymbol = viewModel::getCurrencySymbol,
+                        generalIncome = uiState.chartIncome,
+                        generalExpense = uiState.chartExpense
+                    )
                 }
 
                 item {
@@ -385,8 +394,10 @@ fun DashboardScreen(
                                     TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
                                     TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
                                 }
+                                val symbol = viewModel.getCurrencySymbol(transaction.currencyCode)
+
                                 Text(
-                                    text = "$prefix ${String.format("%.2f", transaction.amount)}",
+                                    text = "$prefix $symbol${String.format("%.2f", transaction.amount)}",
                                     color = color,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1031,8 +1042,12 @@ fun DashboardScreen(
                                         TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
                                         TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
                                     }
+                                    val symbol = viewModel.getCurrencySymbol(
+                                        editingTransaction!!.currencyCode
+                                    )
+
                                     Text(
-                                        text = if (editAmount.isEmpty()) "0.00" else editAmount,
+                                        text = if (editAmount.isEmpty()) "$symbol 0.00" else "$symbol $editAmount",
                                         style = MaterialTheme.typography.displaySmall,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = color
@@ -1195,7 +1210,8 @@ enum class ChartType { PIE, BAR }
 data class ChartData(
     val label: String,
     val value: Float,
-    val color: Color
+    val color: Color,
+    val currencyCode: String
 )
 
 private val ChartColors = listOf(
@@ -1206,13 +1222,20 @@ private val ChartColors = listOf(
 )
 
 @Composable
-fun StatisticsSection(transactions: List<Transaction>, currencySymbol: String, selectedWalletId: String?) {
+fun StatisticsSection(    transactions: List<Transaction>,
+                          currencySymbol: String,
+                          selectedWalletId: String?,
+                          getCurrencySymbol: (String) -> String,
+                          generalIncome: Double,
+                          generalExpense: Double) {
     var viewMode by remember { mutableStateOf(0) } // 0: Gastos, 1: Ingresos, 2: General
     var chartType by remember { mutableStateOf(ChartType.PIE) }
     var selectedItem by remember { mutableStateOf<ChartData?>(null) }
 
     val incomeColor = MaterialTheme.colorScheme.primary
     val expenseColor = MaterialTheme.colorScheme.error
+    val selectedWalletCurrency =
+        transactions.firstOrNull()?.currencyCode ?: "PEN"
 
     val chartData = remember(transactions, viewMode, incomeColor, expenseColor, currencySymbol, selectedWalletId) {
         // Filtrar transacciones de la billetera actual.
@@ -1224,6 +1247,7 @@ fun StatisticsSection(transactions: List<Transaction>, currencySymbol: String, s
             it.origin != "Ajuste de Moneda"
         }
 
+
         when (viewMode) {
             0 -> { // Gastos
                 filteredByWallet.filter { it.type == TransactionType.EXPENSE }
@@ -1232,7 +1256,18 @@ fun StatisticsSection(transactions: List<Transaction>, currencySymbol: String, s
                     .toList()
                     .sortedByDescending { it.second }
                     .mapIndexed { index, pair ->
-                        ChartData(pair.first, pair.second, ChartColors[index % ChartColors.size])
+
+                        val tx = filteredByWallet.firstOrNull {
+                            it.origin == pair.first &&
+                                    it.type == TransactionType.EXPENSE
+                        }
+
+                        ChartData(
+                            label = pair.first,
+                            value = pair.second,
+                            color = ChartColors[index % ChartColors.size],
+                            currencyCode = tx?.currencyCode ?: "PEN"
+                        )
                     }
             }
             1 -> { // Ingresos
@@ -1242,15 +1277,35 @@ fun StatisticsSection(transactions: List<Transaction>, currencySymbol: String, s
                     .toList()
                     .sortedByDescending { it.second }
                     .mapIndexed { index, pair ->
-                        ChartData(pair.first, pair.second, ChartColors[index % ChartColors.size])
+
+                        val tx = filteredByWallet.firstOrNull {
+                            it.origin == pair.first &&
+                                    it.type == TransactionType.INCOME
+                        }
+
+                        ChartData(
+                            label = pair.first,
+                            value = pair.second,
+                            color = ChartColors[index % ChartColors.size],
+                            currencyCode = tx?.currencyCode ?: "PEN"
+                        )
                     }
             }
             else -> { // General (Ambos)
-                val totalIncome = filteredByWallet.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }.toFloat()
-                val totalExpense = filteredByWallet.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }.toFloat()
+
                 listOf(
-                    ChartData("Ingresos", totalIncome, incomeColor),
-                    ChartData("Gastos", totalExpense, expenseColor)
+                    ChartData(
+                        "Ingresos",
+                        generalIncome.toFloat(),
+                        incomeColor,
+                        selectedWalletCurrency
+                    ),
+                    ChartData(
+                        "Gastos",
+                        generalExpense.toFloat(),
+                        expenseColor,
+                        selectedWalletCurrency
+                    )
                 ).filter { it.value > 0 }
             }
         }
@@ -1400,7 +1455,7 @@ fun StatisticsSection(transactions: List<Transaction>, currencySymbol: String, s
                                     )
                                     if (selectedItem == item) {
                                         Text(
-                                            "$currencySymbol ${String.format("%.2f", item.value)}",
+                                            "${getCurrencySymbol(item.currencyCode)} ${String.format("%.2f", item.value)}",
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                                             color = MaterialTheme.colorScheme.primary
                                         )
