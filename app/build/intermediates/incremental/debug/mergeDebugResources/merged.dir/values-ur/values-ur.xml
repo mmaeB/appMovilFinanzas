@@ -60,6 +60,7 @@
     <string name="common_signin_button_text_long">‏Google کے ساتھ سائن ان کریں</string>
     <string msgid="5912733858573823945" name="confirm_device_credential_password">"پاس ورڈ استعمال کریں"</string>
     <string msgid="3260749812566568062" name="copy_toast_msg">"لنک کلپ بورڈ پر کاپی ہو گیا"</string>
+    <string name="crop_image_menu_crop">تصویر کو تراشیں</string>
     <string msgid="8038256446254964252" name="default_error_message">"غلط ان پٹ"</string>
     <string msgid="4776854077120974966" name="default_error_msg">"نامعلوم خرابی"</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"پاپ اپ ونڈو"</string>
@@ -77,6 +78,11 @@
     <string msgid="3791785319221634505" name="generic_error_no_device_credential">"کوئی پن، پیٹرن، یا پاس ورڈ سیٹ نہیں ہے۔"</string>
     <string msgid="1807436368654974044" name="generic_error_no_keyguard">"‏یہ آلہ PIN، پیٹرن یا پاس ورڈ کو سپورٹ نہیں کرتا ہے۔"</string>
     <string msgid="7309881387583143581" name="generic_error_user_canceled">"صارف نے تصدیق کو منسوخ کر دیا۔"</string>
+    <string name="ic_flip_24">پلٹائیں</string>
+    <string name="ic_flip_24_horizontally">افقی پلٹائیں</string>
+    <string name="ic_flip_24_vertically">عمودی طور پر پلٹائیں</string>
+    <string name="ic_rotate_left_24">گھڑی وار گھڑی گھومیں</string>
+    <string name="ic_rotate_right_24">گھمائیں</string>
     <string msgid="6827826412747255547" name="in_progress">"پیشرفت میں"</string>
     <string msgid="7933458017204019916" name="indeterminate">"جزوی طور پر چیک کردہ"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"نیچے کی شیٹ کو سکیڑیں"</string>
@@ -148,6 +154,9 @@
     <string msgid="8471891128988107974" name="mc2_snackbar_pane_title">"الرٹ"</string>
     <string msgid="542007171693138492" name="navigation_menu">"نیویگیشن مینیو"</string>
     <string msgid="6610465462668679431" name="not_selected">"غیر منتخب کردہ"</string>
+    <string name="pick_image_camera">کیمرہ</string>
+    <string name="pick_image_chooser_title">ذریعہ منتخب کریں</string>
+    <string name="pick_image_gallery">گالری</string>
     <string msgid="5941395253238309765" name="range_end">"رینج کا اختتام"</string>
     <string msgid="7097486360902471446" name="range_start">"رینج کی شروعات"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"تلاش کریں"</string>

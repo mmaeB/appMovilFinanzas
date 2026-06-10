@@ -60,6 +60,7 @@
     <string name="common_signin_button_text_long">使用 Google 账号登录</string>
     <string msgid="5912733858573823945" name="confirm_device_credential_password">"使用密码"</string>
     <string msgid="3260749812566568062" name="copy_toast_msg">"链接已复制到剪贴板"</string>
+    <string name="crop_image_menu_crop">裁切</string>
     <string msgid="8038256446254964252" name="default_error_message">"输入无效"</string>
     <string msgid="4776854077120974966" name="default_error_msg">"未知错误"</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"弹出式窗口"</string>
@@ -77,6 +78,11 @@
     <string msgid="3791785319221634505" name="generic_error_no_device_credential">"未设置 PIN 码、解锁图案或密码。"</string>
     <string msgid="1807436368654974044" name="generic_error_no_keyguard">"此设备不支持 PIN 码、解锁图案或密码。"</string>
     <string msgid="7309881387583143581" name="generic_error_user_canceled">"用户已取消身份验证。"</string>
+    <string name="ic_flip_24">翻转</string>
+    <string name="ic_flip_24_horizontally">水平翻转</string>
+    <string name="ic_flip_24_vertically">垂直翻转</string>
+    <string name="ic_rotate_left_24">逆时针旋转</string>
+    <string name="ic_rotate_right_24">旋转</string>
     <string msgid="6827826412747255547" name="in_progress">"进行中"</string>
     <string msgid="7933458017204019916" name="indeterminate">"部分选中"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"收起底部动作条"</string>
@@ -148,6 +154,9 @@
     <string msgid="8471891128988107974" name="mc2_snackbar_pane_title">"提醒"</string>
     <string msgid="542007171693138492" name="navigation_menu">"导航菜单"</string>
     <string msgid="6610465462668679431" name="not_selected">"未选择"</string>
+    <string name="pick_image_camera">相机</string>
+    <string name="pick_image_chooser_title">选择来源</string>
+    <string name="pick_image_gallery">相册</string>
     <string msgid="5941395253238309765" name="range_end">"范围终点"</string>
     <string msgid="7097486360902471446" name="range_start">"范围起点"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"搜索"</string>

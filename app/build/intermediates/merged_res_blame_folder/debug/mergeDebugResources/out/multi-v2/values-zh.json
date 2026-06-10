@@ -1,0 +1,36 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.upn3.proyecto_finanzas_personales.app-mergeDebugResources-64:/values-zh/values-zh.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\imano\\.gradle\\caches\\9.3.1\\transforms\\eb8f86b181ae1fe7f60b02c85c7dc25f\\workspace\\transformed\\ucrop-2.2.11\\res\\values-zh\\values-zh.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7",
+                        "startColumns": "4,4,4,4,4,4",
+                        "startOffsets": "55,97,151,205,252,296",
+                        "endColumns": "41,53,53,46,43,42",
+                        "endOffsets": "92,146,200,247,291,334"
+                    },
+                    "to": {
+                        "startLines": "11,12,13,14,15,16",
+                        "startColumns": "4,4,4,4,4,4",
+                        "startOffsets": "520,562,616,670,717,761",
+                        "endColumns": "41,53,53,46,43,42",
+                        "endOffsets": "557,611,665,712,756,799"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\imano\\.gradle\\caches\\9.3.1\\transforms\\e9b1145b55e731fba428e8044363ae28\\workspace\\transformed\\android-image-cropper-4.7.0\\res\\values-zh\\values-zh.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10",
+                        "startColumns": "4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,107,149,206,261,313,363,412,470",
+                        "endColumns": "51,41,56,54,51,49,48,57,49",
+                        "endOffsets": "102,144,201,256,308,358,407,465,515"
+                    }
+                }
+            ]
+        }
+    ]
+}

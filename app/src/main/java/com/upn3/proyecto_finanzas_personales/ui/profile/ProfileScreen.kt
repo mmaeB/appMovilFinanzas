@@ -36,6 +36,9 @@ import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.yalantis.ucrop.UCrop
+import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
+import java.io.File
 
 import com.upn3.proyecto_finanzas_personales.ui.auth.SharedAuthTextField
 import com.upn3.proyecto_finanzas_personales.ui.components.ThemeSelector
@@ -55,19 +58,67 @@ fun ProfileScreen(
     var email by remember { mutableStateOf(user?.email ?: "") }
     var password by remember { mutableStateOf("") }
     var profilePic by remember { mutableStateOf(user?.profilePicture ?: "") }
+    var showCropper by remember { mutableStateOf(false) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        uri?.let {
-            viewModel.uploadProfilePicture(it) { downloadUrl ->
-                profilePic = downloadUrl
+    val cropLauncher = rememberLauncherForActivityResult(
+        contract = StartActivityForResult()
+    ) { result ->
+
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+
+            val resultUri = result.data?.let { UCrop.getOutput(it) }
+
+            resultUri?.let {
+
+                viewModel.uploadProfilePicture(
+                    context,
+                    it
+                ) { imageUrl ->
+
+                    profilePic = imageUrl
+                }
             }
         }
     }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+
+        uri?.let {
+
+            val destinationUri = Uri.fromFile(
+                File(
+                    context.cacheDir,
+                    "cropped_${System.currentTimeMillis()}.jpg"
+                )
+            )
+
+            val options = UCrop.Options().apply {
+
+                setCircleDimmedLayer(true)
+                setHideBottomControls(false)
+                setFreeStyleCropEnabled(false)
+            }
+
+            val intent = UCrop.of(
+                it,
+                destinationUri
+            )
+                .withAspectRatio(1f, 1f)
+                .withMaxResultSize(800, 800)
+                .withOptions(options)
+                .getIntent(context)
+
+            cropLauncher.launch(intent)
+        }
+    }
+
+
 
     Scaffold(
         modifier = Modifier.imePadding(),

@@ -60,6 +60,7 @@
     <string name="common_signin_button_text_long">Google மூலம் உள்நுழைக</string>
     <string msgid="5912733858573823945" name="confirm_device_credential_password">"கடவுச்சொல்லைப் பயன்படுத்து"</string>
     <string msgid="3260749812566568062" name="copy_toast_msg">"கிளிப்-போர்டுக்கு இணைப்பு நகலெடுக்கப்பட்டது"</string>
+    <string name="crop_image_menu_crop">படத்தை செதுக்கு</string>
     <string msgid="8038256446254964252" name="default_error_message">"தவறான உள்ளீடு"</string>
     <string msgid="4776854077120974966" name="default_error_msg">"அறியப்படாத பிழை"</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"பாப்-அப் சாளரம்"</string>
@@ -77,6 +78,11 @@
     <string msgid="3791785319221634505" name="generic_error_no_device_credential">"பின்னோ பேட்டர்னோ கடவுச்சொல்லோ அமைக்கப்படவில்லை."</string>
     <string msgid="1807436368654974044" name="generic_error_no_keyguard">"பின், பேட்டர்ன், கடவுச்சொல் ஆகியவற்றை இந்தச் சாதனம் ஆதரிக்கவில்லை."</string>
     <string msgid="7309881387583143581" name="generic_error_user_canceled">"பயனரால் அங்கீகரிப்பு ரத்துசெய்யப்பட்டது."</string>
+    <string name="ic_flip_24">புரட்டவும்</string>
+    <string name="ic_flip_24_horizontally">கிடைமட்டமாக புரட்டவும்</string>
+    <string name="ic_flip_24_vertically">செங்குத்தாக புரட்டவும்</string>
+    <string name="ic_rotate_left_24">எதிர் கடிகார திசையில் சுழற்று</string>
+    <string name="ic_rotate_right_24">சுழற்று</string>
     <string msgid="6827826412747255547" name="in_progress">"செயலிலுள்ளது"</string>
     <string msgid="7933458017204019916" name="indeterminate">"சில மட்டுமே தேர்ந்தெடுக்கப்பட்டுள்ளன"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"கீழ்ப்புற ஷீட்டைச் சுருக்கும்"</string>
@@ -148,6 +154,9 @@
     <string msgid="8471891128988107974" name="mc2_snackbar_pane_title">"விழிப்பூட்டல்"</string>
     <string msgid="542007171693138492" name="navigation_menu">"வழிசெலுத்தல் மெனு"</string>
     <string msgid="6610465462668679431" name="not_selected">"தேர்ந்தெடுக்கப்படவில்லை"</string>
+    <string name="pick_image_camera">கேமரா</string>
+    <string name="pick_image_chooser_title">மூலத்தைத் தேர்ந்தெடுக்கவும்</string>
+    <string name="pick_image_gallery">தொகுப்பு</string>
     <string msgid="5941395253238309765" name="range_end">"வரம்பு முடிவு"</string>
     <string msgid="7097486360902471446" name="range_start">"வரம்பு தொடக்கம்"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"தேடல்"</string>

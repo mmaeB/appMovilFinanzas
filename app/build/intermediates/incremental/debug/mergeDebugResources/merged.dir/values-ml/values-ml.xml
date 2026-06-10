@@ -60,6 +60,7 @@
     <string name="common_signin_button_text_long">Google ഉപയോഗിച്ച് സൈൻ ഇൻ ചെയ്യുക</string>
     <string msgid="5912733858573823945" name="confirm_device_credential_password">"പാസ്‌വേഡ് ഉപയോഗിക്കുക"</string>
     <string msgid="3260749812566568062" name="copy_toast_msg">"ക്ലിപ്പ്‌ബോർഡിലേക്ക് ലിങ്ക് പകർത്തി"</string>
+    <string name="crop_image_menu_crop">മുറിക്കുക</string>
     <string msgid="8038256446254964252" name="default_error_message">"ഇൻപുട്ട് അസാധുവാണ്"</string>
     <string msgid="4776854077120974966" name="default_error_msg">"അജ്ഞാത പിശക്"</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"പോപ്പ്-അപ്പ് വിൻഡോ"</string>
@@ -77,6 +78,11 @@
     <string msgid="3791785319221634505" name="generic_error_no_device_credential">"പിൻ, പാറ്റേൺ, അല്ലെങ്കിൽ പാസ്‍വേഡ് ഇവയൊന്നും സജ്ജീകരിച്ചിട്ടില്ല."</string>
     <string msgid="1807436368654974044" name="generic_error_no_keyguard">"പിൻ, പാറ്റേൺ, പാസ്‌വേഡ് എന്നിവ ഈ ഉപകരണം പിന്തുണയ്ക്കുന്നില്ല."</string>
     <string msgid="7309881387583143581" name="generic_error_user_canceled">"പരിശോധിച്ചുറപ്പിക്കൽ ഉപയോക്താവ് റദ്ദാക്കി."</string>
+    <string name="ic_flip_24">മറിക്കുക</string>
+    <string name="ic_flip_24_horizontally">തിരശ്ചീനമായി മറിക്കുക</string>
+    <string name="ic_flip_24_vertically">ലംബമായി മറിക്കുക</string>
+    <string name="ic_rotate_left_24">എതിർ ഘടികാരദിശയിൽ തിരിക്കുക</string>
+    <string name="ic_rotate_right_24">തിരിക്കുക</string>
     <string msgid="6827826412747255547" name="in_progress">"പുരോഗമിക്കുന്നു"</string>
     <string msgid="7933458017204019916" name="indeterminate">"ഭാഗികമായി ചെക്ക് മാർക്കിട്ടു"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"ബോട്ടം ഷീറ്റ് ചുരുക്കുക"</string>
@@ -148,6 +154,9 @@
     <string msgid="8471891128988107974" name="mc2_snackbar_pane_title">"മുന്നറിയിപ്പ്"</string>
     <string msgid="542007171693138492" name="navigation_menu">"നാവിഗേഷൻ മെനു"</string>
     <string msgid="6610465462668679431" name="not_selected">"തിരഞ്ഞെടുത്തില്ല"</string>
+    <string name="pick_image_camera">ക്യാമറ</string>
+    <string name="pick_image_chooser_title">ഉറവിടം തിരഞ്ഞെടുക്കുക</string>
+    <string name="pick_image_gallery">ഗാലറി</string>
     <string msgid="5941395253238309765" name="range_end">"ശ്രേണിയുടെ അവസാനം"</string>
     <string msgid="7097486360902471446" name="range_start">"ശ്രേണിയുടെ ആരംഭം"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"തിരയുക"</string>

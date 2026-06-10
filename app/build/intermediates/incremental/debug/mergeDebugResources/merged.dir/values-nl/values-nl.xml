@@ -60,6 +60,7 @@
     <string name="common_signin_button_text_long">Inloggen met Google</string>
     <string msgid="5912733858573823945" name="confirm_device_credential_password">"Wachtwoord gebruiken"</string>
     <string msgid="3260749812566568062" name="copy_toast_msg">"Link naar klembord gekopieerd"</string>
+    <string name="crop_image_menu_crop">Bijsnijden</string>
     <string msgid="8038256446254964252" name="default_error_message">"Ongeldige invoer"</string>
     <string msgid="4776854077120974966" name="default_error_msg">"Onbekende fout"</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"Pop-upvenster"</string>
@@ -77,6 +78,11 @@
     <string msgid="3791785319221634505" name="generic_error_no_device_credential">"Geen pincode, patroon of wachtwoord ingesteld."</string>
     <string msgid="1807436368654974044" name="generic_error_no_keyguard">"Dit apparaat ondersteunt geen pincode, patroon of wachtwoord."</string>
     <string msgid="7309881387583143581" name="generic_error_user_canceled">"Verificatie geannuleerd door gebruiker."</string>
+    <string name="ic_flip_24">Spiegelen</string>
+    <string name="ic_flip_24_horizontally">Horizontaal spiegelen</string>
+    <string name="ic_flip_24_vertically">Verticaal spiegelen</string>
+    <string name="ic_rotate_left_24">Tegen de klok in draaien</string>
+    <string name="ic_rotate_right_24">Draaien</string>
     <string msgid="6827826412747255547" name="in_progress">"Bezig"</string>
     <string msgid="7933458017204019916" name="indeterminate">"Gedeeltelijk aangevinkt"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"Blad onderaan samenvouwen"</string>
@@ -148,6 +154,9 @@
     <string msgid="8471891128988107974" name="mc2_snackbar_pane_title">"Waarschuwing"</string>
     <string msgid="542007171693138492" name="navigation_menu">"Navigatiemenu"</string>
     <string msgid="6610465462668679431" name="not_selected">"Niet geselecteerd"</string>
+    <string name="pick_image_camera">Camera</string>
+    <string name="pick_image_chooser_title">Bron selecteren</string>
+    <string name="pick_image_gallery">Galerij</string>
     <string msgid="5941395253238309765" name="range_end">"Einde bereik"</string>
     <string msgid="7097486360902471446" name="range_start">"Start bereik"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Zoeken"</string>
@@ -162,4 +171,10 @@
     <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> procent."</string>
     <string msgid="3765533235322692011" name="tooltip_description">"tooltip"</string>
     <string msgid="3124740595719787496" name="tooltip_label">"tooltip tonen"</string>
+    <string name="ucrop_crop">Bijsnijden</string>
+    <string name="ucrop_label_edit_photo">Foto bewerken</string>
+    <string name="ucrop_label_original">Origineel</string>
+    <string name="ucrop_menu_crop">Bijsnijden</string>
+    <string name="ucrop_rotate">Draaien</string>
+    <string name="ucrop_scale">Schalen</string>
 </resources>

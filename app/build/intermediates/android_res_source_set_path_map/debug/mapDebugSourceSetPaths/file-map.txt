@@ -1,8 +1,8 @@
-com.upn3.proyecto_finanzas_personales.app-pngs-0 C:\Users\imano\Downloads\appMovilFinanzas-main\app\build\generated\res\pngs\debug
-com.upn3.proyecto_finanzas_personales.app-res-1 C:\Users\imano\Downloads\appMovilFinanzas-main\app\build\generated\res\processDebugGoogleServices
-com.upn3.proyecto_finanzas_personales.app-updated_navigation_xml-2 C:\Users\imano\Downloads\appMovilFinanzas-main\app\build\generated\updated_navigation_xml\debug
-com.upn3.proyecto_finanzas_personales.app-packageDebugResources-3 C:\Users\imano\Downloads\appMovilFinanzas-main\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
-com.upn3.proyecto_finanzas_personales.app-packageDebugResources-4 C:\Users\imano\Downloads\appMovilFinanzas-main\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
-com.upn3.proyecto_finanzas_personales.app-debug-5 C:\Users\imano\Downloads\appMovilFinanzas-main\app\build\intermediates\merged_res\debug\mergeDebugResources
-com.upn3.proyecto_finanzas_personales.app-debug-6 C:\Users\imano\Downloads\appMovilFinanzas-main\app\src\debug\res
-com.upn3.proyecto_finanzas_personales.app-main-7 C:\Users\imano\Downloads\appMovilFinanzas-main\app\src\main\res
+com.upn3.proyecto_finanzas_personales.app-pngs-0 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\build\generated\res\pngs\debug
+com.upn3.proyecto_finanzas_personales.app-res-1 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\build\generated\res\processDebugGoogleServices
+com.upn3.proyecto_finanzas_personales.app-updated_navigation_xml-2 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\build\generated\updated_navigation_xml\debug
+com.upn3.proyecto_finanzas_personales.app-packageDebugResources-3 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.upn3.proyecto_finanzas_personales.app-packageDebugResources-4 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.upn3.proyecto_finanzas_personales.app-debug-5 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.upn3.proyecto_finanzas_personales.app-debug-6 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\src\debug\res
+com.upn3.proyecto_finanzas_personales.app-main-7 C:\Users\imano\AndroidStudioProjects\appMovilFinanzas\app\src\main\res

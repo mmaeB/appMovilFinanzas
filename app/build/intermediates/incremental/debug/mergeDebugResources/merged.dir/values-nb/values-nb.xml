@@ -60,6 +60,7 @@
     <string name="common_signin_button_text_long">Logg på med Google</string>
     <string msgid="5912733858573823945" name="confirm_device_credential_password">"Bruk passord"</string>
     <string msgid="3260749812566568062" name="copy_toast_msg">"Linken er kopiert til utklippstavlen"</string>
+    <string name="crop_image_menu_crop">Beskjær</string>
     <string msgid="8038256446254964252" name="default_error_message">"Ugyldige inndata"</string>
     <string msgid="4776854077120974966" name="default_error_msg">"Ukjent feil"</string>
     <string msgid="6312721426453364202" name="default_popup_window_title">"Forgrunnsvindu"</string>
@@ -77,6 +78,11 @@
     <string msgid="3791785319221634505" name="generic_error_no_device_credential">"PIN-kode, mønster eller passord er ikke angitt."</string>
     <string msgid="1807436368654974044" name="generic_error_no_keyguard">"Denne enheten støtter ikke PIN-kode, mønster eller passord."</string>
     <string msgid="7309881387583143581" name="generic_error_user_canceled">"Autentiseringen ble avbrutt av brukeren."</string>
+    <string name="ic_flip_24">Vend</string>
+    <string name="ic_flip_24_horizontally">Vend vannrett</string>
+    <string name="ic_flip_24_vertically">Vend loddrett</string>
+    <string name="ic_rotate_left_24">Roter teller med urviseren</string>
+    <string name="ic_rotate_right_24">Roter</string>
     <string msgid="6827826412747255547" name="in_progress">"Pågår"</string>
     <string msgid="7933458017204019916" name="indeterminate">"Delvis avmerket"</string>
     <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"Skjul feltet nederst"</string>
@@ -148,6 +154,9 @@
     <string msgid="8471891128988107974" name="mc2_snackbar_pane_title">"Varsel"</string>
     <string msgid="542007171693138492" name="navigation_menu">"Navigasjonsmeny"</string>
     <string msgid="6610465462668679431" name="not_selected">"Ikke valgt"</string>
+    <string name="pick_image_camera">Kamera</string>
+    <string name="pick_image_chooser_title">Velg kilde</string>
+    <string name="pick_image_gallery">Galleri</string>
     <string msgid="5941395253238309765" name="range_end">"Områdeslutt"</string>
     <string msgid="7097486360902471446" name="range_start">"Områdestart"</string>
     <string msgid="6264217191555673260" name="search_menu_title">"Søk"</string>

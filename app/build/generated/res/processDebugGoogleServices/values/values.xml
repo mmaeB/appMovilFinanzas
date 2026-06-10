@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="gcm_defaultSenderId" translatable="false">751154291249</string>
-    <string name="google_api_key" translatable="false">AIzaSyBZUrbnUPi7qgRAJ8QIywdpnRANDBL9gP8</string>
-    <string name="google_app_id" translatable="false">1:751154291249:android:c6b2299e39342a237d2b10</string>
-    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyBZUrbnUPi7qgRAJ8QIywdpnRANDBL9gP8</string>
-    <string name="google_storage_bucket" translatable="false">gestordefinanzas-c5f84.firebasestorage.app</string>
-    <string name="project_id" translatable="false">gestordefinanzas-c5f84</string>
+    <string name="gcm_defaultSenderId" translatable="false">129140821678</string>
+    <string name="google_api_key" translatable="false">AIzaSyDDuCKKR247XwcYu85bqBDFZIQPBaH98Z8</string>
+    <string name="google_app_id" translatable="false">1:129140821678:android:147700001fdb57add9e73f</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyDDuCKKR247XwcYu85bqBDFZIQPBaH98Z8</string>
+    <string name="google_storage_bucket" translatable="false">proyectofinanzaspersonal-1842a.firebasestorage.app</string>
+    <string name="project_id" translatable="false">proyectofinanzaspersonal-1842a</string>
 </resources>

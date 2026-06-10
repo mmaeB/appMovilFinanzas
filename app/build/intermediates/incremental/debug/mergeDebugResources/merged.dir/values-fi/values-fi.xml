@@ -162,4 +162,8 @@
     <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> prosenttia"</string>
     <string msgid="3765533235322692011" name="tooltip_description">"vihjeteksti"</string>
     <string msgid="3124740595719787496" name="tooltip_label">"näytä vihjeteksti"</string>
+    <string name="ucrop_error_input_data_is_absent">Sekä sisäänmeno- että ulostulo-Urit täytyy olla määritettyinä</string>
+    <string name="ucrop_label_edit_photo">Muokkaa kuvaa</string>
+    <string name="ucrop_menu_crop">Rajaa</string>
+    <string name="ucrop_mutate_exception_hint"/>
 </resources>

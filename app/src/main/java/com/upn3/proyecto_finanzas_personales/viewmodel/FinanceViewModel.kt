@@ -7,12 +7,10 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.storage.FirebaseStorage
 import com.upn3.proyecto_finanzas_personales.data.UserPreferences
 import com.upn3.proyecto_finanzas_personales.model.*
 import com.upn3.proyecto_finanzas_personales.ui.theme.AppTheme
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.Dispatchers
@@ -23,12 +21,19 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.PBEKeySpec
 import javax.crypto.spec.SecretKeySpec
-
 import com.upn3.proyecto_finanzas_personales.network.CurrencyService
 import com.upn3.proyecto_finanzas_personales.network.CurrencyResponse
 import com.google.gson.Gson
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import android.content.Context
+import com.upn3.proyecto_finanzas_personales.network.CloudinaryClient
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
 
 data class FinanceState(
     val balance: Double = 0.0,
@@ -51,7 +56,6 @@ data class FinanceState(
 class FinanceViewModel(application: Application) : AndroidViewModel(application) {
     
     private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
     private val auth = FirebaseAuth.getInstance()
     private val userPreferences = UserPreferences(application)
 
@@ -133,17 +137,60 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun uploadProfilePicture(uri: Uri, onSuccess: (String) -> Unit) {
-        val email = uiState.value.currentUser?.email ?: return
-        val storageRef = storage.reference.child("profile_pictures/$email.jpg")
-
+    fun uploadProfilePicture(
+        context: Context,
+        uri: Uri,
+        onSuccess: (String) -> Unit
+    ) {
         viewModelScope.launch {
             try {
-                storageRef.putFile(uri).await()
-                val downloadUrl = storageRef.downloadUrl.await().toString()
-                onSuccess(downloadUrl)
+                val inputStream =
+                    context.contentResolver.openInputStream(uri)
+
+                val tempFile =
+                    File.createTempFile(
+                        "profile_picture",
+                        ".jpg"
+                    )
+
+                tempFile.outputStream().use { output ->
+                    inputStream?.copyTo(output)
+                }
+
+                val requestFile =
+                    tempFile.asRequestBody(
+                        "image/*".toMediaType()
+                    )
+
+                val imagePart =
+                    MultipartBody.Part.createFormData(
+                        "file",
+                        tempFile.name,
+                        requestFile
+                    )
+
+                val preset =
+                    "profile_images"
+                        .toRequestBody(
+                            "text/plain".toMediaType()
+                        )
+
+                val response =
+                    CloudinaryClient.api.uploadImage(
+                        imagePart,
+                        preset
+                    )
+
+                onSuccess(response.secureUrl)
+
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Error al subir imagen: ${e.message}") }
+
+                _uiState.update {
+                    it.copy(
+                        errorMessage =
+                            "Error al subir imagen: ${e.message}"
+                    )
+                }
             }
         }
     }
