@@ -919,14 +919,20 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.update { it.copy(errorMessage = "Esta modificación resultaría en un saldo negativo en la billetera ${wallet.name}.") }
                 return
             }
+
         }
+
+        val updatedTransaction = transaction.copy(
+            lastModified = System.currentTimeMillis()
+        )
+
 
         viewModelScope.launch {
             try {
                 db.runBatch { batch ->
                     val transRef = db.collection("users").document(email)
                         .collection("transactions").document(transaction.id)
-                    batch.set(transRef, transaction)
+                    batch.set(transRef, updatedTransaction)
                     
                     if (oldTransaction != null && wallet != null && !isAdjustment) {
                         val oldImpact = when(oldTransaction.type) {
@@ -949,7 +955,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                 
                 val index = allTransactions.indexOfFirst { it.id == transaction.id }
                 if (index != -1) {
-                    allTransactions[index] = transaction
+                    allTransactions[index] = updatedTransaction
                 }
                 
                 if (oldTransaction != null && wallet != null && !isAdjustment) {

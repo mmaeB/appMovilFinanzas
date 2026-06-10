@@ -34,7 +34,7 @@ import com.upn3.proyecto_finanzas_personales.viewmodel.FinanceViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.*
-
+import androidx.compose.foundation.clickable
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -51,6 +51,10 @@ fun DashboardScreen(
     
     var showEditTransactionDialog by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<Transaction?>(null) }
+    var selectedConversion by remember {mutableStateOf<Transaction?>(null) }
+    var showConversionDialog by remember {mutableStateOf(false) }
+    var selectedTransactionDetail by remember {mutableStateOf<Transaction?>(null)}
+    var showTransactionDetailDialog by remember {mutableStateOf(false)}
     var editAmount by remember { mutableStateOf("") }
     var editDescription by remember { mutableStateOf("") }
     var editCategory by remember { mutableStateOf<Category?>(null) }
@@ -72,9 +76,24 @@ fun DashboardScreen(
         }
 
         when (selectedTab) {
-            1 -> baseList.filter { it.type == TransactionType.EXPENSE }
-            2 -> baseList.filter { it.type == TransactionType.INCOME }
-            3 -> baseList.filter { it.type == TransactionType.TRANSFER }
+            1 -> baseList.filter {
+                it.type == TransactionType.EXPENSE &&
+                        it.origin != "Ajuste de Moneda"
+            }
+
+            2 -> baseList.filter {
+                it.type == TransactionType.INCOME &&
+                        it.origin != "Ajuste de Moneda"
+            }
+
+            3 -> baseList.filter {
+                it.type == TransactionType.TRANSFER
+            }
+
+            4 -> baseList.filter {
+                it.origin == "Ajuste de Moneda"
+            }
+
             else -> baseList
         }
     }
@@ -346,7 +365,7 @@ fun DashboardScreen(
                         }
                     ) {
                         Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }) {
-                            Text("Todas", modifier = Modifier.padding(12.dp))
+                            Text("Todos", modifier = Modifier.padding(12.dp))
                         }
                         Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }) {
                             Text("Gastos", modifier = Modifier.padding(12.dp))
@@ -357,27 +376,65 @@ fun DashboardScreen(
                         Tab(selected = selectedTab == 3, onClick = { selectedTab = 3 }) {
                             Text("Transferencias", modifier = Modifier.padding(12.dp))
                         }
+                        Tab(selected = selectedTab == 4, onClick = { selectedTab = 4 }) {
+                            Text("Conversiones", modifier = Modifier.padding(12.dp))
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
                 items(filteredTransactions) { transaction ->
                     ListItem(
+                        modifier = Modifier.clickable {
+
+                            if (transaction.origin == "Ajuste de Moneda") {
+
+                                selectedConversion = transaction
+                                showConversionDialog = true
+
+                            } else {
+
+                                selectedTransactionDetail = transaction
+                                showTransactionDetailDialog = true
+
+                            }
+                        },
                         headlineContent = { Text(transaction.description) },
-                        supportingContent = { 
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                val icon = when(transaction.type) {
-                                    TransactionType.INCOME -> Icons.Default.ArrowUpward
-                                    TransactionType.EXPENSE -> Icons.Default.ArrowDownward
-                                    TransactionType.TRANSFER -> Icons.Default.SwapHoriz
+                        supportingContent = {
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val icon = when(transaction.type) {
+                                        TransactionType.INCOME -> Icons.Default.ArrowUpward
+                                        TransactionType.EXPENSE -> Icons.Default.ArrowDownward
+                                        TransactionType.TRANSFER -> Icons.Default.SwapHoriz
+                                    }
+                                    val color = when(transaction.type) {
+                                        TransactionType.INCOME -> MaterialTheme.colorScheme.primary
+                                        TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
+                                        TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
+                                    }
+                                    Icon(
+                                        icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = color
+                                    )
+                                    Text(transaction.origin)
                                 }
-                                val color = when(transaction.type) {
-                                    TransactionType.INCOME -> MaterialTheme.colorScheme.primary
-                                    TransactionType.EXPENSE -> MaterialTheme.colorScheme.error
-                                    TransactionType.TRANSFER -> MaterialTheme.colorScheme.secondary
+
+                                if (transaction.origin == "Ajuste de Moneda") {
+                                    Text(
+                                        text = java.text.SimpleDateFormat(
+                                            "dd/MM/yyyy HH:mm",
+                                            java.util.Locale.getDefault()
+                                        ).format(java.util.Date(transaction.timestamp)),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                                Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = color)
-                                Text(transaction.origin) 
                             }
                         },
                         trailingContent = {
@@ -945,6 +1002,157 @@ fun DashboardScreen(
             dismissButton = {
                 TextButton(onClick = { showEditBalanceDialog = false }) {
                     Text("CANCELAR", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        )
+    }
+
+    if (showConversionDialog && selectedConversion != null) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showConversionDialog = false
+                selectedConversion = null
+            },
+
+            title = {
+                Text(
+                    "Detalle de Conversión",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+
+            text = {
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+
+                    Text(
+                        selectedConversion!!.description,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    HorizontalDivider()
+
+                    Text(
+                        "Moneda destino: ${selectedConversion!!.currencyCode}"
+                    )
+
+                    Text(
+                        "Fecha:"
+                    )
+
+                    Text(
+                        java.text.SimpleDateFormat(
+                            "dd/MM/yyyy HH:mm:ss",
+                            java.util.Locale.getDefault()
+                        ).format(
+                            java.util.Date(
+                                selectedConversion!!.timestamp
+                            )
+                        )
+                    )
+
+                    Text(
+                        "Origen:"
+                    )
+
+                    Text(
+                        selectedConversion!!.origin
+                    )
+                }
+            },
+
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showConversionDialog = false
+                        selectedConversion = null
+                    }
+                ) {
+                    Text("Cerrar")
+                }
+            }
+        )
+    }
+
+    if (showTransactionDetailDialog && selectedTransactionDetail != null) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showTransactionDetailDialog = false
+                selectedTransactionDetail = null
+            },
+
+            title = {
+                Text(
+                    "Detalle de Transacción",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+
+            text = {
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+
+                    val tx = selectedTransactionDetail!!
+
+                    Text(
+                        "Monto: ${
+                            viewModel.getCurrencySymbol(tx.currencyCode)
+                        }${String.format("%.2f", tx.amount)}"
+                    )
+
+                    Text(
+                        "Categoría: ${tx.origin}"
+                    )
+
+                    Text(
+                        "Descripción: ${tx.description}"
+                    )
+
+                    HorizontalDivider()
+
+                    Text("Fecha de creación:")
+
+                    Text(
+                        java.text.SimpleDateFormat(
+                            "dd/MM/yyyy HH:mm:ss",
+                            java.util.Locale.getDefault()
+                        ).format(
+                            java.util.Date(tx.timestamp)
+                        )
+                    )
+
+                    tx.lastModified?.let {
+
+                        HorizontalDivider()
+
+                        Text("Última modificación:")
+
+                        Text(
+                            java.text.SimpleDateFormat(
+                                "dd/MM/yyyy HH:mm:ss",
+                                java.util.Locale.getDefault()
+                            ).format(
+                                java.util.Date(it)
+                            )
+                        )
+                    }
+                }
+            },
+
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showTransactionDetailDialog = false
+                        selectedTransactionDetail = null
+                    }
+                ) {
+                    Text("Cerrar")
                 }
             }
         )

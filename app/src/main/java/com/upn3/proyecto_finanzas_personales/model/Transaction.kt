@@ -14,5 +14,6 @@ data class Transaction(
     val description: String = "",
     val origin: String = "",
     val type: TransactionType = TransactionType.INCOME,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val lastModified: Long? = null
 )

@@ -1,4 +1,4 @@
-#Wed Jun 10 03:26:33 PET 2026
+#Wed Jun 10 03:53:54 PET 2026
 base.0=C\:\\Users\\imano\\AndroidStudioProjects\\appMovilFinanzas\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
 base.1=C\:\\Users\\imano\\AndroidStudioProjects\\appMovilFinanzas\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
 base.10=C\:\\Users\\imano\\AndroidStudioProjects\\appMovilFinanzas\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\8\\classes.dex
